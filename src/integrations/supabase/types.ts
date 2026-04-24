@@ -14,7 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      test_sessions: {
+        Row: {
+          answers: Json
+          classification: string | null
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          iq_estimate: number | null
+          notes: string | null
+          percentile: number | null
+          raw_score: number
+          subject_age_months: number
+          subject_age_years: number
+          subject_gender: string | null
+          subject_grade: string | null
+          subject_name: string
+          subject_school: string | null
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          classification?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          iq_estimate?: number | null
+          notes?: string | null
+          percentile?: number | null
+          raw_score?: number
+          subject_age_months?: number
+          subject_age_years: number
+          subject_gender?: string | null
+          subject_grade?: string | null
+          subject_name: string
+          subject_school?: string | null
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          classification?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          iq_estimate?: number | null
+          notes?: string | null
+          percentile?: number | null
+          raw_score?: number
+          subject_age_months?: number
+          subject_age_years?: number
+          subject_gender?: string | null
+          subject_grade?: string | null
+          subject_name?: string
+          subject_school?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
