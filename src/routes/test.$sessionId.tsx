@@ -323,6 +323,214 @@ function TestPage() {
   );
 }
 
+interface ReviewScreenProps {
+  sessionInfo: { subject_name: string; subject_age_years: number; subject_age_months: number };
+  answers: Record<string, number>;
+  showCorrect: boolean;
+  setShowCorrect: (v: boolean) => void;
+  onChangeAnswer: (qid: string, opt: number) => void;
+  onClearAnswer: (qid: string) => void;
+  onJumpTo: (i: number) => void;
+  onBack: () => void;
+  onFinish: () => void;
+  elapsed: number;
+}
+
+function ReviewScreen({
+  sessionInfo,
+  answers,
+  showCorrect,
+  setShowCorrect,
+  onChangeAnswer,
+  onClearAnswer,
+  onJumpTo,
+  onBack,
+  onFinish,
+  elapsed,
+}: ReviewScreenProps) {
+  const total = RAVEN_QUESTIONS.length;
+  const answered = Object.keys(answers).length;
+  const correctCount = RAVEN_QUESTIONS.reduce(
+    (acc, q) => acc + (answers[q.id] === q.correct ? 1 : 0),
+    0
+  );
+  const unansweredCount = total - answered;
+  const minutes = Math.floor(elapsed / 60);
+  const seconds = elapsed % 60;
+
+  // group by set
+  const sets: Array<"A" | "Ab" | "B"> = ["A", "Ab", "B"];
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <AppHeader />
+      <main className="flex-1 mx-auto w-full max-w-5xl px-3 sm:px-6 py-6 space-y-5">
+        {/* Summary bar */}
+        <Card className="border-border/60 shadow-card">
+          <CardContent className="py-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">
+                <span className="text-muted-foreground">مراجعة إجابات: </span>
+                <span className="font-bold text-foreground">{sessionInfo.subject_name}</span>
+                <span className="text-muted-foreground">
+                  {" "}· {sessionInfo.subject_age_years} سنة
+                  {sessionInfo.subject_age_months > 0 ? ` و ${sessionInfo.subject_age_months} شهر` : ""}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="secondary" className="gap-1.5 font-mono">
+                  <Clock className="h-3.5 w-3.5" />
+                  {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
+                </Badge>
+                <Badge variant="outline">المجاب عنها: {answered}/{total}</Badge>
+                {unansweredCount > 0 && (
+                  <Badge variant="destructive">غير مجاب: {unansweredCount}</Badge>
+                )}
+                {showCorrect && (
+                  <Badge className="bg-hero-gradient text-primary-foreground border-0">
+                    صحيحة: {correctCount}
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-3 pt-2 border-t border-border/60">
+              <Button
+                variant={showCorrect ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowCorrect(!showCorrect)}
+                className={cn(showCorrect && "bg-hero-gradient text-primary-foreground")}
+              >
+                {showCorrect ? <EyeOff className="ms-2 h-4 w-4" /> : <Eye className="ms-2 h-4 w-4" />}
+                {showCorrect ? "إخفاء الإجابات الصحيحة" : "إظهار الإجابات الصحيحة (للمختص)"}
+              </Button>
+              <p className="text-[11px] text-muted-foreground hidden sm:block">
+                * عرض الإجابات الصحيحة مخصص للمختص فقط ولا يجب إظهاره للمفحوص.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Per-set review */}
+        {sets.map((setKey) => {
+          const items = RAVEN_QUESTIONS.filter((q) => q.set === setKey);
+          return (
+            <Card key={setKey} className="border-border/60 shadow-card">
+              <CardContent className="py-5 space-y-4">
+                <h2 className="font-bold text-lg flex items-center gap-2">
+                  <Badge variant="outline" className="text-sm">{SET_LABELS[setKey]}</Badge>
+                  <span className="text-sm text-muted-foreground font-normal">
+                    ({items.filter((q) => answers[q.id] !== undefined).length}/{items.length})
+                  </span>
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {items.map((q) => {
+                    const userAns = answers[q.id];
+                    const isAnswered = userAns !== undefined;
+                    const isCorrect = userAns === q.correct;
+                    const globalIndex = RAVEN_QUESTIONS.findIndex((x) => x.id === q.id);
+                    return (
+                      <div
+                        key={q.id}
+                        className={cn(
+                          "rounded-xl border-2 p-3 transition-smooth",
+                          !isAnswered && "border-destructive/40 bg-destructive/5",
+                          isAnswered && showCorrect && isCorrect && "border-emerald-500/40 bg-emerald-500/5",
+                          isAnswered && showCorrect && !isCorrect && "border-amber-500/40 bg-amber-500/5",
+                          isAnswered && !showCorrect && "border-border bg-card"
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge variant="outline" className="font-mono text-xs">{q.id}</Badge>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2"
+                              onClick={() => onJumpTo(globalIndex)}
+                              title="فتح السؤال"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            {isAnswered && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-destructive hover:text-destructive"
+                                onClick={() => onClearAnswer(q.id)}
+                                title="مسح الإجابة"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 text-sm">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground text-xs">إجابة المفحوص:</span>
+                            <span className={cn(
+                              "inline-flex items-center justify-center h-7 w-7 rounded-md font-bold text-sm",
+                              !isAnswered && "bg-muted text-muted-foreground",
+                              isAnswered && showCorrect && isCorrect && "bg-emerald-500 text-white",
+                              isAnswered && showCorrect && !isCorrect && "bg-amber-500 text-white",
+                              isAnswered && !showCorrect && "bg-primary text-primary-foreground"
+                            )}>
+                              {isAnswered ? userAns : "—"}
+                            </span>
+                          </div>
+                          {showCorrect && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground text-xs">الصحيحة:</span>
+                              <span className="inline-flex items-center justify-center h-7 w-7 rounded-md font-bold text-sm bg-gold-gradient text-gold-foreground">
+                                {q.correct}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        {/* Quick edit options */}
+                        <div className="mt-3 grid grid-cols-6 gap-1">
+                          {[1, 2, 3, 4, 5, 6].map((opt) => {
+                            const selected = userAns === opt;
+                            const isRight = showCorrect && opt === q.correct;
+                            return (
+                              <button
+                                key={opt}
+                                onClick={() => onChangeAnswer(q.id, opt)}
+                                className={cn(
+                                  "h-8 rounded-md text-xs font-bold transition-smooth border",
+                                  selected
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : isRight
+                                      ? "bg-gold/15 text-foreground border-gold/40"
+                                      : "bg-card text-foreground border-border hover:bg-secondary"
+                                )}
+                              >
+                                {opt}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+
+        {/* Footer actions */}
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 sticky bottom-3">
+          <Button variant="outline" size="lg" onClick={onBack} className="bg-background/95 backdrop-blur">
+            <ChevronRight className="ms-2 h-4 w-4" />
+            العودة للاختبار
+          </Button>
+          <FinishDialog onConfirm={onFinish} answered={answered} total={total} />
+        </div>
+      </main>
+    </div>
+  );
+}
+
 function FinishDialog({ onConfirm, answered, total }: { onConfirm: () => void; answered: number; total: number }) {
   const allAnswered = answered === total;
   return (
@@ -330,7 +538,7 @@ function FinishDialog({ onConfirm, answered, total }: { onConfirm: () => void; a
       <AlertDialogTrigger asChild>
         <Button size="lg" className="bg-gold-gradient text-gold-foreground shadow-gold hover:opacity-95">
           <Send className="ms-2 h-4 w-4" />
-          إنهاء الاختبار
+          إنهاء واحتساب النتيجة
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
