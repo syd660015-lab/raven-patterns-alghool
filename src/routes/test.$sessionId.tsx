@@ -40,6 +40,8 @@ function TestPage() {
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [elapsed, setElapsed] = useState(0);
+  const [reviewMode, setReviewMode] = useState(false);
+  const [showCorrect, setShowCorrect] = useState(true);
   const startedAt = useRef<number>(Date.now());
 
   useEffect(() => {
