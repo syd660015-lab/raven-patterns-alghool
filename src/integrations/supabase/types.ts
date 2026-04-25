@@ -128,6 +128,8 @@ export type Database = {
           duration_seconds: number | null
           id: string
           iq_estimate: number | null
+          norm_table_id: string | null
+          norm_table_name: string | null
           notes: string | null
           percentile: number | null
           raw_score: number
@@ -148,6 +150,8 @@ export type Database = {
           duration_seconds?: number | null
           id?: string
           iq_estimate?: number | null
+          norm_table_id?: string | null
+          norm_table_name?: string | null
           notes?: string | null
           percentile?: number | null
           raw_score?: number
@@ -168,6 +172,8 @@ export type Database = {
           duration_seconds?: number | null
           id?: string
           iq_estimate?: number | null
+          norm_table_id?: string | null
+          norm_table_name?: string | null
           notes?: string | null
           percentile?: number | null
           raw_score?: number
@@ -179,7 +185,15 @@ export type Database = {
           subject_school?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "test_sessions_norm_table_id_fkey"
+            columns: ["norm_table_id"]
+            isOneToOne: false
+            referencedRelation: "norm_tables"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
