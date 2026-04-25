@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  Check, ClipboardList, Copy, History, Loader2, Lock, Plus, Save, Star, Trash2,
+  Check, ClipboardList, Copy, Download, FileJson, FileSpreadsheet, History,
+  Loader2, Lock, Plus, Save, Star, Trash2, Upload,
 } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,10 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
   DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { CPM_NORMS } from "@/data/raven-norms";
@@ -62,6 +67,37 @@ const PERCENTILE_KEYS: Array<keyof Pick<NormRow, "p5" | "p10" | "p25" | "p50" | 
 const PERCENTILE_LABELS: Record<string, string> = {
   p5: "5%", p10: "10%", p25: "25%", p50: "50%", p75: "75%", p90: "90%", p95: "95%",
 };
+
+function toInt(v: unknown, field: string): number {
+  if (v === null || v === undefined || v === "") throw new Error(`قيمة فارغة للحقل ${field}`);
+  const n = typeof v === "number" ? v : parseInt(String(v).trim(), 10);
+  if (!Number.isFinite(n)) throw new Error(`قيمة غير رقمية للحقل ${field}: ${String(v)}`);
+  return n;
+}
+
+function coerceRow(obj: Record<string, unknown>): NormRow {
+  return {
+    age_min: toInt(obj.age_min, "age_min"),
+    age_max: toInt(obj.age_max, "age_max"),
+    p5: toInt(obj.p5, "p5"),
+    p10: toInt(obj.p10, "p10"),
+    p25: toInt(obj.p25, "p25"),
+    p50: toInt(obj.p50, "p50"),
+    p75: toInt(obj.p75, "p75"),
+    p90: toInt(obj.p90, "p90"),
+    p95: toInt(obj.p95, "p95"),
+  };
+}
+
+function validateRows(parsed: NormRow[]) {
+  for (const r of parsed) {
+    if (r.age_min > r.age_max) throw new Error(`age_min أكبر من age_max عند العمر ${r.age_min}`);
+    const ps = [r.p5, r.p10, r.p25, r.p50, r.p75, r.p90, r.p95];
+    for (const v of ps) {
+      if (v < 0 || v > 36) throw new Error(`قيمة مئين خارج النطاق (0–36) عند العمر ${r.age_min}`);
+    }
+  }
+}
 
 function NormsPage() {
   const { user, loading } = useAuth();
@@ -235,6 +271,113 @@ function NormsPage() {
     await refreshTables(false, created.id);
   }
 
+  function exportRows(format: "csv" | "json") {
+    if (!selected) return;
+    const safeName = selected.name.replace(/[\\/:*?"<>|]+/g, "_").trim() || "norms";
+    const stamp = new Date().toISOString().slice(0, 10);
+    let blob: Blob;
+    let filename: string;
+
+    if (format === "csv") {
+      const header = ["age_min", "age_max", "p5", "p10", "p25", "p50", "p75", "p90", "p95"];
+      const lines = [header.join(",")];
+      for (const r of rows) {
+        lines.push([r.age_min, r.age_max, r.p5, r.p10, r.p25, r.p50, r.p75, r.p90, r.p95].join(","));
+      }
+      blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+      filename = `raven-cpm-norms-${safeName}-${stamp}.csv`;
+    } else {
+      const payload = {
+        format: "raven-cpm-norms",
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        table: { name: selected.name, description: selected.description, is_default: selected.is_default },
+        rows: rows.map((r) => ({
+          age_min: r.age_min, age_max: r.age_max,
+          p5: r.p5, p10: r.p10, p25: r.p25, p50: r.p50, p75: r.p75, p90: r.p90, p95: r.p95,
+        })),
+      };
+      blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+      filename = `raven-cpm-norms-${safeName}-${stamp}.json`;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`تم تصدير ${rows.length} صفوف بصيغة ${format.toUpperCase()}`);
+  }
+
+  async function importFromFile(file: File) {
+    if (!user) return;
+    try {
+      const text = await file.text();
+      const lower = file.name.toLowerCase();
+      let parsed: NormRow[] = [];
+
+      if (lower.endsWith(".json")) {
+        const obj = JSON.parse(text);
+        const arr = Array.isArray(obj) ? obj : obj.rows;
+        if (!Array.isArray(arr)) throw new Error("ملف JSON لا يحتوي على مصفوفة rows");
+        parsed = arr.map(coerceRow);
+      } else {
+        const sep = text.includes("\t") && !text.includes(",") ? "\t" : ",";
+        const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.trim().length > 0);
+        if (lines.length < 2) throw new Error("ملف CSV فارغ أو لا يحتوي على بيانات");
+        const headers = lines[0].split(sep).map((h) => h.trim().toLowerCase());
+        const required = ["age_min", "age_max", "p5", "p10", "p25", "p50", "p75", "p90", "p95"];
+        for (const r of required) {
+          if (!headers.includes(r)) throw new Error(`عمود مفقود في CSV: ${r}`);
+        }
+        const idx: Record<string, number> = {};
+        headers.forEach((h, i) => (idx[h] = i));
+        parsed = lines.slice(1).map((line) => {
+          const cells = line.split(sep);
+          const obj: Record<string, unknown> = {};
+          for (const k of required) obj[k] = cells[idx[k]];
+          return coerceRow(obj);
+        });
+      }
+
+      if (parsed.length === 0) throw new Error("لم يتم العثور على صفوف صالحة في الملف");
+      validateRows(parsed);
+
+      const today = new Date().toLocaleDateString("ar-EG");
+      const newName = `استيراد من ${file.name} — ${today}`;
+      const description = `استيراد ${parsed.length} صفوف من ${lower.endsWith(".json") ? "JSON" : "CSV"} (${file.name})`;
+
+      const { data: created, error } = await supabase
+        .from("norm_tables")
+        .insert({
+          user_id: user.id,
+          name: newName,
+          description,
+          is_active: false,
+          is_default: false,
+        })
+        .select()
+        .single();
+      if (error || !created) throw new Error(error?.message ?? "تعذّر إنشاء النسخة");
+
+      const insertRows = parsed.map((r) => ({
+        table_id: created.id,
+        age_min: r.age_min, age_max: r.age_max,
+        p5: r.p5, p10: r.p10, p25: r.p25, p50: r.p50, p75: r.p75, p90: r.p90, p95: r.p95,
+      }));
+      const { error: insErr } = await supabase.from("norm_rows").insert(insertRows);
+      if (insErr) throw new Error(insErr.message);
+
+      toast.success(`تم الاستيراد كنسخة تاريخية جديدة (${parsed.length} صفوف)`);
+      await refreshTables(false, created.id);
+    } catch (err) {
+      toast.error("فشل الاستيراد: " + (err instanceof Error ? err.message : String(err)));
+    }
+  }
+
   if (loading || loadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -257,11 +400,14 @@ function NormsPage() {
               راجع وحدّث جداول المئينات حسب العمر. النسخة <Badge variant="outline" className="mx-1">النشطة</Badge> هي التي ستُحتسب بها الاختبارات الجديدة.
             </p>
           </div>
-          <NewVersionDialog
-            tables={tables}
-            currentId={selectedId}
-            onCreate={createNewVersion}
-          />
+          <div className="flex items-center gap-2 flex-wrap">
+            <ImportButton onImport={importFromFile} />
+            <NewVersionDialog
+              tables={tables}
+              currentId={selectedId}
+              onCreate={createNewVersion}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -331,6 +477,26 @@ function NormsPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline">
+                              <Download className="ms-2 h-4 w-4" />
+                              تصدير
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuLabel>تنزيل النسخة</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => exportRows("csv")}>
+                              <FileSpreadsheet className="ms-2 h-4 w-4" />
+                              ملف CSV (Excel)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => exportRows("json")}>
+                              <FileJson className="ms-2 h-4 w-4" />
+                              ملف JSON
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                         {!selected.is_active && (
                           <Button size="sm" variant="outline" onClick={() => activateTable(selected.id)}>
                             <Check className="ms-2 h-4 w-4" />
@@ -529,5 +695,36 @@ function NewVersionDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ImportButton({ onImport }: { onImport: (file: File) => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <>
+      <input
+        id="norms-import-input"
+        type="file"
+        accept=".csv,.json,.tsv,text/csv,application/json"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          setBusy(true);
+          await onImport(file);
+          setBusy(false);
+          e.target.value = ""; // allow re-selecting the same file
+        }}
+      />
+      <Button
+        variant="outline"
+        onClick={() => document.getElementById("norms-import-input")?.click()}
+        disabled={busy}
+        title="استيراد قيم من ملف CSV أو JSON كنسخة تاريخية جديدة"
+      >
+        {busy ? <Loader2 className="ms-2 h-4 w-4 animate-spin" /> : <Upload className="ms-2 h-4 w-4" />}
+        استيراد
+      </Button>
+    </>
   );
 }
