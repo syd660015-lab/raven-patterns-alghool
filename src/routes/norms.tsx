@@ -68,6 +68,37 @@ const PERCENTILE_LABELS: Record<string, string> = {
   p5: "5%", p10: "10%", p25: "25%", p50: "50%", p75: "75%", p90: "90%", p95: "95%",
 };
 
+function toInt(v: unknown, field: string): number {
+  if (v === null || v === undefined || v === "") throw new Error(`قيمة فارغة للحقل ${field}`);
+  const n = typeof v === "number" ? v : parseInt(String(v).trim(), 10);
+  if (!Number.isFinite(n)) throw new Error(`قيمة غير رقمية للحقل ${field}: ${String(v)}`);
+  return n;
+}
+
+function coerceRow(obj: Record<string, unknown>): NormRow {
+  return {
+    age_min: toInt(obj.age_min, "age_min"),
+    age_max: toInt(obj.age_max, "age_max"),
+    p5: toInt(obj.p5, "p5"),
+    p10: toInt(obj.p10, "p10"),
+    p25: toInt(obj.p25, "p25"),
+    p50: toInt(obj.p50, "p50"),
+    p75: toInt(obj.p75, "p75"),
+    p90: toInt(obj.p90, "p90"),
+    p95: toInt(obj.p95, "p95"),
+  };
+}
+
+function validateRows(parsed: NormRow[]) {
+  for (const r of parsed) {
+    if (r.age_min > r.age_max) throw new Error(`age_min أكبر من age_max عند العمر ${r.age_min}`);
+    const ps = [r.p5, r.p10, r.p25, r.p50, r.p75, r.p90, r.p95];
+    for (const v of ps) {
+      if (v < 0 || v > 36) throw new Error(`قيمة مئين خارج النطاق (0–36) عند العمر ${r.age_min}`);
+    }
+  }
+}
+
 function NormsPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
