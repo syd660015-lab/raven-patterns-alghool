@@ -148,6 +148,35 @@ function TestPage() {
     );
   }
 
+  if (reviewMode) {
+    return (
+      <ReviewScreen
+        sessionInfo={sessionInfo}
+        answers={answers}
+        showCorrect={showCorrect}
+        setShowCorrect={setShowCorrect}
+        onChangeAnswer={(qid, opt) => {
+          const next = { ...answers, [qid]: opt };
+          setAnswers(next);
+          void persistAnswers(next);
+        }}
+        onClearAnswer={(qid) => {
+          const next = { ...answers };
+          delete next[qid];
+          setAnswers(next);
+          void persistAnswers(next);
+        }}
+        onJumpTo={(i) => {
+          setCurrent(i);
+          setReviewMode(false);
+        }}
+        onBack={() => setReviewMode(false)}
+        onFinish={finish}
+        elapsed={elapsed}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <AppHeader />
