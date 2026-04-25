@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { RAVEN_QUESTIONS, SET_LABELS } from "@/data/raven-questions";
 import { classifyIQ, estimatePercentile, percentileToIQ } from "@/data/raven-norms";
+import { loadActiveNormTable } from "@/data/active-norms";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/test/$sessionId")({
