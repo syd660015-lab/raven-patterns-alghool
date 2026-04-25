@@ -51,6 +51,16 @@ export function AppHeader() {
                 <span className="hidden sm:inline">السجلات</span>
               </Link>
             </Button>
+            <Button
+              asChild
+              variant={location.pathname.startsWith("/norms") ? "secondary" : "ghost"}
+              size="sm"
+            >
+              <Link to="/norms">
+                <Settings2 className="ms-2 h-4 w-4" />
+                <span className="hidden sm:inline">المعايير</span>
+              </Link>
+            </Button>
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
               <LogOut className="ms-2 h-4 w-4" />
               <span className="hidden sm:inline">خروج</span>
