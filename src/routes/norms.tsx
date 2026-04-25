@@ -474,6 +474,26 @@ function NormsPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline">
+                              <Download className="ms-2 h-4 w-4" />
+                              تصدير
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuLabel>تنزيل النسخة</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => exportRows("csv")}>
+                              <FileSpreadsheet className="ms-2 h-4 w-4" />
+                              ملف CSV (Excel)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => exportRows("json")}>
+                              <FileJson className="ms-2 h-4 w-4" />
+                              ملف JSON
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                         {!selected.is_active && (
                           <Button size="sm" variant="outline" onClick={() => activateTable(selected.id)}>
                             <Check className="ms-2 h-4 w-4" />
