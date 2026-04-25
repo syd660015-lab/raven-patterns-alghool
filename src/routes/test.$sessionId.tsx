@@ -114,7 +114,8 @@ function TestPage() {
       (acc, ques) => acc + (answers[ques.id] === ques.correct ? 1 : 0),
       0
     );
-    const percentile = estimatePercentile(raw, sessionInfo.subject_age_years);
+    const activeNorm = await loadActiveNormTable();
+    const percentile = estimatePercentile(raw, sessionInfo.subject_age_years, activeNorm.rows);
     const iq = percentileToIQ(percentile);
     const cls = classifyIQ(iq);
 
@@ -129,6 +130,8 @@ function TestPage() {
         duration_seconds: elapsed,
         completed: true,
         completed_at: new Date().toISOString(),
+        norm_table_id: activeNorm.id === "builtin" ? null : activeNorm.id,
+        norm_table_name: activeNorm.name,
       })
       .eq("id", sessionId);
     if (error) {
