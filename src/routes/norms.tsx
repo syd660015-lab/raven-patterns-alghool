@@ -240,7 +240,113 @@ function NormsPage() {
     await refreshTables(false, created.id);
   }
 
-  if (loading || loadingData) {
+  function exportRows(format: "csv" | "json") {
+    if (!selected) return;
+    const safeName = selected.name.replace(/[\\/:*?"<>|]+/g, "_").trim() || "norms";
+    const stamp = new Date().toISOString().slice(0, 10);
+    let blob: Blob;
+    let filename: string;
+
+    if (format === "csv") {
+      const header = ["age_min", "age_max", "p5", "p10", "p25", "p50", "p75", "p90", "p95"];
+      const lines = [header.join(",")];
+      for (const r of rows) {
+        lines.push([r.age_min, r.age_max, r.p5, r.p10, r.p25, r.p50, r.p75, r.p90, r.p95].join(","));
+      }
+      blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+      filename = `raven-cpm-norms-${safeName}-${stamp}.csv`;
+    } else {
+      const payload = {
+        format: "raven-cpm-norms",
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        table: { name: selected.name, description: selected.description, is_default: selected.is_default },
+        rows: rows.map((r) => ({
+          age_min: r.age_min, age_max: r.age_max,
+          p5: r.p5, p10: r.p10, p25: r.p25, p50: r.p50, p75: r.p75, p90: r.p90, p95: r.p95,
+        })),
+      };
+      blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+      filename = `raven-cpm-norms-${safeName}-${stamp}.json`;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`تم تصدير ${rows.length} صفوف بصيغة ${format.toUpperCase()}`);
+  }
+
+  async function importFromFile(file: File) {
+    if (!user) return;
+    try {
+      const text = await file.text();
+      const lower = file.name.toLowerCase();
+      let parsed: NormRow[] = [];
+
+      if (lower.endsWith(".json")) {
+        const obj = JSON.parse(text);
+        const arr = Array.isArray(obj) ? obj : obj.rows;
+        if (!Array.isArray(arr)) throw new Error("ملف JSON لا يحتوي على مصفوفة rows");
+        parsed = arr.map(coerceRow);
+      } else {
+        const sep = text.includes("\t") && !text.includes(",") ? "\t" : ",";
+        const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.trim().length > 0);
+        if (lines.length < 2) throw new Error("ملف CSV فارغ أو لا يحتوي على بيانات");
+        const headers = lines[0].split(sep).map((h) => h.trim().toLowerCase());
+        const required = ["age_min", "age_max", "p5", "p10", "p25", "p50", "p75", "p90", "p95"];
+        for (const r of required) {
+          if (!headers.includes(r)) throw new Error(`عمود مفقود في CSV: ${r}`);
+        }
+        const idx: Record<string, number> = {};
+        headers.forEach((h, i) => (idx[h] = i));
+        parsed = lines.slice(1).map((line) => {
+          const cells = line.split(sep);
+          const obj: Record<string, unknown> = {};
+          for (const k of required) obj[k] = cells[idx[k]];
+          return coerceRow(obj);
+        });
+      }
+
+      if (parsed.length === 0) throw new Error("لم يتم العثور على صفوف صالحة في الملف");
+      validateRows(parsed);
+
+      const today = new Date().toLocaleDateString("ar-EG");
+      const newName = `استيراد من ${file.name} — ${today}`;
+      const description = `استيراد ${parsed.length} صفوف من ${lower.endsWith(".json") ? "JSON" : "CSV"} (${file.name})`;
+
+      const { data: created, error } = await supabase
+        .from("norm_tables")
+        .insert({
+          user_id: user.id,
+          name: newName,
+          description,
+          is_active: false,
+          is_default: false,
+        })
+        .select()
+        .single();
+      if (error || !created) throw new Error(error?.message ?? "تعذّر إنشاء النسخة");
+
+      const insertRows = parsed.map((r) => ({
+        table_id: created.id,
+        age_min: r.age_min, age_max: r.age_max,
+        p5: r.p5, p10: r.p10, p25: r.p25, p50: r.p50, p75: r.p75, p90: r.p90, p95: r.p95,
+      }));
+      const { error: insErr } = await supabase.from("norm_rows").insert(insertRows);
+      if (insErr) throw new Error(insErr.message);
+
+      toast.success(`تم الاستيراد كنسخة تاريخية جديدة (${parsed.length} صفوف)`);
+      await refreshTables(false, created.id);
+    } catch (err) {
+      toast.error("فشل الاستيراد: " + (err instanceof Error ? err.message : String(err)));
+    }
+  }
+
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
