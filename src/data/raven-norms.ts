@@ -56,16 +56,21 @@ export function classifyIQ(iq: number): IQClassification {
   );
 }
 
-function findNormRow(ageYears: number): AgeNormRow {
-  const clamped = Math.max(5, Math.min(11, ageYears));
-  return CPM_NORMS.find((r) => clamped >= r.ageMin && clamped <= r.ageMax) ?? CPM_NORMS[CPM_NORMS.length - 1];
+function findNormRow(ageYears: number, rows: AgeNormRow[] = CPM_NORMS): AgeNormRow {
+  if (rows.length === 0) return CPM_NORMS[CPM_NORMS.length - 1];
+  const sorted = [...rows].sort((a, b) => a.ageMin - b.ageMin);
+  const minAge = sorted[0].ageMin;
+  const maxAge = sorted[sorted.length - 1].ageMax;
+  const clamped = Math.max(minAge, Math.min(maxAge, ageYears));
+  return sorted.find((r) => clamped >= r.ageMin && clamped <= r.ageMax) ?? sorted[sorted.length - 1];
 }
 
 /**
  * Estimate percentile from raw score using age norms (linear interpolation).
+ * Optionally accepts a custom norms table (e.g. specialist's edited version).
  */
-export function estimatePercentile(rawScore: number, ageYears: number): number {
-  const row = findNormRow(ageYears);
+export function estimatePercentile(rawScore: number, ageYears: number, rows?: AgeNormRow[]): number {
+  const row = findNormRow(ageYears, rows ?? CPM_NORMS);
   const points: Array<[number, number]> = [
     [row.p5, 5],
     [row.p10, 10],
