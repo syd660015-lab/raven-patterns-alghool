@@ -697,3 +697,34 @@ function NewVersionDialog({
     </Dialog>
   );
 }
+
+function ImportButton({ onImport }: { onImport: (file: File) => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <>
+      <input
+        id="norms-import-input"
+        type="file"
+        accept=".csv,.json,.tsv,text/csv,application/json"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          setBusy(true);
+          await onImport(file);
+          setBusy(false);
+          e.target.value = ""; // allow re-selecting the same file
+        }}
+      />
+      <Button
+        variant="outline"
+        onClick={() => document.getElementById("norms-import-input")?.click()}
+        disabled={busy}
+        title="استيراد قيم من ملف CSV أو JSON كنسخة تاريخية جديدة"
+      >
+        {busy ? <Loader2 className="ms-2 h-4 w-4 animate-spin" /> : <Upload className="ms-2 h-4 w-4" />}
+        استيراد
+      </Button>
+    </>
+  );
+}
