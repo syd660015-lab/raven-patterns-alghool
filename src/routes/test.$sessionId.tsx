@@ -264,7 +264,14 @@ function TestPage() {
               <ChevronLeft className="me-2 h-4 w-4" />
             </Button>
           ) : (
-            <FinishDialog onConfirm={finish} answered={answered} total={total} />
+            <Button
+              size="lg"
+              onClick={() => setReviewMode(true)}
+              className="bg-gold-gradient text-gold-foreground shadow-gold hover:opacity-95"
+            >
+              <ListChecks className="ms-2 h-4 w-4" />
+              مراجعة قبل الإنهاء
+            </Button>
           )}
         </div>
 
