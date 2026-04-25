@@ -14,6 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
+      norm_rows: {
+        Row: {
+          age_max: number
+          age_min: number
+          created_at: string
+          id: string
+          p10: number
+          p25: number
+          p5: number
+          p50: number
+          p75: number
+          p90: number
+          p95: number
+          table_id: string
+        }
+        Insert: {
+          age_max: number
+          age_min: number
+          created_at?: string
+          id?: string
+          p10: number
+          p25: number
+          p5: number
+          p50: number
+          p75: number
+          p90: number
+          p95: number
+          table_id: string
+        }
+        Update: {
+          age_max?: number
+          age_min?: number
+          created_at?: string
+          id?: string
+          p10?: number
+          p25?: number
+          p5?: number
+          p50?: number
+          p75?: number
+          p90?: number
+          p95?: number
+          table_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "norm_rows_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "norm_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      norm_tables: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -42,6 +128,8 @@ export type Database = {
           duration_seconds: number | null
           id: string
           iq_estimate: number | null
+          norm_table_id: string | null
+          norm_table_name: string | null
           notes: string | null
           percentile: number | null
           raw_score: number
@@ -62,6 +150,8 @@ export type Database = {
           duration_seconds?: number | null
           id?: string
           iq_estimate?: number | null
+          norm_table_id?: string | null
+          norm_table_name?: string | null
           notes?: string | null
           percentile?: number | null
           raw_score?: number
@@ -82,6 +172,8 @@ export type Database = {
           duration_seconds?: number | null
           id?: string
           iq_estimate?: number | null
+          norm_table_id?: string | null
+          norm_table_name?: string | null
           notes?: string | null
           percentile?: number | null
           raw_score?: number
@@ -93,14 +185,25 @@ export type Database = {
           subject_school?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "test_sessions_norm_table_id_fkey"
+            columns: ["norm_table_id"]
+            isOneToOne: false
+            referencedRelation: "norm_tables"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      seed_default_norm_table_for_user: {
+        Args: { _user_id: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

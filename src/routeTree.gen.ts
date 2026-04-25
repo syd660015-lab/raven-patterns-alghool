@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SessionsRouteImport } from './routes/sessions'
+import { Route as NormsRouteImport } from './routes/norms'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TestSessionIdRouteImport } from './routes/test.$sessionId'
@@ -18,6 +19,11 @@ import { Route as ResultSessionIdRouteImport } from './routes/result.$sessionId'
 const SessionsRoute = SessionsRouteImport.update({
   id: '/sessions',
   path: '/sessions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NormsRoute = NormsRouteImport.update({
+  id: '/norms',
+  path: '/norms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -44,6 +50,7 @@ const ResultSessionIdRoute = ResultSessionIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/norms': typeof NormsRoute
   '/sessions': typeof SessionsRoute
   '/result/$sessionId': typeof ResultSessionIdRoute
   '/test/$sessionId': typeof TestSessionIdRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/norms': typeof NormsRoute
   '/sessions': typeof SessionsRoute
   '/result/$sessionId': typeof ResultSessionIdRoute
   '/test/$sessionId': typeof TestSessionIdRoute
@@ -59,6 +67,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/norms': typeof NormsRoute
   '/sessions': typeof SessionsRoute
   '/result/$sessionId': typeof ResultSessionIdRoute
   '/test/$sessionId': typeof TestSessionIdRoute
@@ -68,15 +77,23 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/norms'
     | '/sessions'
     | '/result/$sessionId'
     | '/test/$sessionId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/sessions' | '/result/$sessionId' | '/test/$sessionId'
+  to:
+    | '/'
+    | '/auth'
+    | '/norms'
+    | '/sessions'
+    | '/result/$sessionId'
+    | '/test/$sessionId'
   id:
     | '__root__'
     | '/'
     | '/auth'
+    | '/norms'
     | '/sessions'
     | '/result/$sessionId'
     | '/test/$sessionId'
@@ -85,6 +102,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
+  NormsRoute: typeof NormsRoute
   SessionsRoute: typeof SessionsRoute
   ResultSessionIdRoute: typeof ResultSessionIdRoute
   TestSessionIdRoute: typeof TestSessionIdRoute
@@ -97,6 +115,13 @@ declare module '@tanstack/react-router' {
       path: '/sessions'
       fullPath: '/sessions'
       preLoaderRoute: typeof SessionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/norms': {
+      id: '/norms'
+      path: '/norms'
+      fullPath: '/norms'
+      preLoaderRoute: typeof NormsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -133,6 +158,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
+  NormsRoute: NormsRoute,
   SessionsRoute: SessionsRoute,
   ResultSessionIdRoute: ResultSessionIdRoute,
   TestSessionIdRoute: TestSessionIdRoute,

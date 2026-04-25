@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { Brain, LogOut, History, ClipboardList, User as UserIcon } from "lucide-react";
+import { Brain, LogOut, History, ClipboardList, Settings2, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,6 +49,16 @@ export function AppHeader() {
               <Link to="/sessions">
                 <History className="ms-2 h-4 w-4" />
                 <span className="hidden sm:inline">السجلات</span>
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant={location.pathname.startsWith("/norms") ? "secondary" : "ghost"}
+              size="sm"
+            >
+              <Link to="/norms">
+                <Settings2 className="ms-2 h-4 w-4" />
+                <span className="hidden sm:inline">المعايير</span>
               </Link>
             </Button>
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
