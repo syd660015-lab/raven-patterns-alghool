@@ -400,11 +400,14 @@ function NormsPage() {
               راجع وحدّث جداول المئينات حسب العمر. النسخة <Badge variant="outline" className="mx-1">النشطة</Badge> هي التي ستُحتسب بها الاختبارات الجديدة.
             </p>
           </div>
-          <NewVersionDialog
-            tables={tables}
-            currentId={selectedId}
-            onCreate={createNewVersion}
-          />
+          <div className="flex items-center gap-2 flex-wrap">
+            <ImportButton onImport={importFromFile} />
+            <NewVersionDialog
+              tables={tables}
+              currentId={selectedId}
+              onCreate={createNewVersion}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
