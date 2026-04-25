@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { Brain, LogOut, History, ClipboardList, User as UserIcon } from "lucide-react";
+import { Brain, LogOut, History, ClipboardList, Settings2, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
