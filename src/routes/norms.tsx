@@ -995,12 +995,372 @@ function CompareDialog({
           <LegendDot className="bg-amber-400" label="بدون تغيير" />
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                disabled={busy || mergedAgeKeys.length === 0 || !!sameSide}
+              >
+                <Download className="ms-2 h-4 w-4" />
+                تصدير المقارنة
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel className="text-xs">تنسيق التصدير</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() =>
+                  exportComparisonCsv({
+                    leftLabel, rightLabel, mergedAgeKeys,
+                    leftRows, rightRows, stats,
+                  })
+                }
+              >
+                <FileSpreadsheet className="ms-2 h-4 w-4" />
+                CSV (مع ملخص Δ)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  exportComparisonPdf({
+                    leftLabel, rightLabel, mergedAgeKeys,
+                    leftRows, rightRows, stats,
+                  })
+                }
+              >
+                <FileJson className="ms-2 h-4 w-4" />
+                PDF (تقرير مرئي للطباعة)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" onClick={() => setOpen(false)}>إغلاق</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
+}
+
+// ---------- Comparison Export Helpers ----------
+
+interface ComparisonExportArgs {
+  leftLabel: string;
+  rightLabel: string;
+  mergedAgeKeys: string[];
+  leftRows: NormRow[] | null;
+  rightRows: NormRow[] | null;
+  stats: {
+    changed: number; added: number; removed: number; identical: number;
+    avgAbsDelta: string; cellChanges: number;
+  };
+}
+
+function findRow(rows: NormRow[] | null, key: string): NormRow | undefined {
+  if (!rows) return undefined;
+  return rows.find((r) => `${r.age_min}-${r.age_max}` === key);
+}
+
+function safeFileName(s: string): string {
+  return s.replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, "_").slice(0, 40) || "norms";
+}
+
+function timestamp(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
+}
+
+function exportComparisonCsv(args: ComparisonExportArgs) {
+  const { leftLabel, rightLabel, mergedAgeKeys, leftRows, rightRows, stats } = args;
+
+  const lines: string[] = [];
+  // Header section
+  lines.push(`تقرير مقارنة جداول المعايير`);
+  lines.push(`النسخة (أ),"${leftLabel.replace(/"/g, '""')}"`);
+  lines.push(`النسخة (ب),"${rightLabel.replace(/"/g, '""')}"`);
+  lines.push(`تاريخ التصدير,"${new Date().toLocaleString("ar")}"`);
+  lines.push("");
+  // Summary
+  lines.push(`ملخص,القيمة`);
+  lines.push(`صفوف متطابقة,${stats.identical}`);
+  lines.push(`صفوف بها تغيير,${stats.changed}`);
+  lines.push(`مضافة في (ب),${stats.added}`);
+  lines.push(`محذوفة في (ب),${stats.removed}`);
+  lines.push(`إجمالي خلايا متغيّرة,${stats.cellChanges}`);
+  lines.push(`متوسط فرق الخلايا |Δ|,${stats.avgAbsDelta}`);
+  lines.push("");
+
+  // Per-cell delta table: age × percentile, with A→B and Δ
+  const header = ["الفئة العمرية", "الحالة"];
+  for (const p of PERCENTILE_KEYS) {
+    header.push(`مئين ${PERCENTILE_LABELS[p]} (أ)`);
+    header.push(`مئين ${PERCENTILE_LABELS[p]} (ب)`);
+    header.push(`Δ ${PERCENTILE_LABELS[p]}`);
+  }
+  lines.push(header.join(","));
+
+  // Per-percentile delta accumulators (for summary)
+  const perPercentileSum: Record<string, number> = {};
+  const perPercentileCount: Record<string, number> = {};
+  for (const p of PERCENTILE_KEYS) { perPercentileSum[p] = 0; perPercentileCount[p] = 0; }
+
+  for (const key of mergedAgeKeys) {
+    const a = findRow(leftRows, key);
+    const b = findRow(rightRows, key);
+    const status = a && !b ? "محذوف" : !a && b ? "جديد" : a && b ? "مقارنة" : "—";
+    const row: string[] = [`"${key.replace("-", "–")} سنة"`, status];
+    for (const p of PERCENTILE_KEYS) {
+      const av = a?.[p];
+      const bv = b?.[p];
+      row.push(av === undefined ? "" : String(av));
+      row.push(bv === undefined ? "" : String(bv));
+      if (av !== undefined && bv !== undefined) {
+        const d = bv - av;
+        row.push(d === 0 ? "0" : (d > 0 ? `+${d}` : `${d}`));
+        if (d !== 0) {
+          perPercentileSum[p] += Math.abs(d);
+          perPercentileCount[p] += 1;
+        }
+      } else {
+        row.push("");
+      }
+    }
+    lines.push(row.join(","));
+  }
+
+  // Per-percentile delta summary block
+  lines.push("");
+  lines.push(`ملخص Δ لكل مئين,إجمالي |Δ|,عدد الخلايا المتغيرة,متوسط |Δ|`);
+  for (const p of PERCENTILE_KEYS) {
+    const sum = perPercentileSum[p];
+    const cnt = perPercentileCount[p];
+    const avg = cnt ? (sum / cnt).toFixed(2) : "0";
+    lines.push(`مئين ${PERCENTILE_LABELS[p]},${sum},${cnt},${avg}`);
+  }
+
+  // Per-age delta summary block
+  lines.push("");
+  lines.push(`ملخص Δ لكل فئة عمرية,إجمالي |Δ|,عدد الخلايا المتغيرة,متوسط |Δ|`);
+  for (const key of mergedAgeKeys) {
+    const a = findRow(leftRows, key);
+    const b = findRow(rightRows, key);
+    let sum = 0, cnt = 0;
+    if (a && b) {
+      for (const p of PERCENTILE_KEYS) {
+        if (a[p] !== b[p]) { sum += Math.abs(b[p] - a[p]); cnt++; }
+      }
+    }
+    const avg = cnt ? (sum / cnt).toFixed(2) : "0";
+    lines.push(`"${key.replace("-", "–")} سنة",${sum},${cnt},${avg}`);
+  }
+
+  // UTF-8 BOM for Excel Arabic compatibility
+  const csv = "\uFEFF" + lines.join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `comparison_${safeFileName(leftLabel)}_vs_${safeFileName(rightLabel)}_${timestamp()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast.success("تم تصدير ملف CSV");
+}
+
+function exportComparisonPdf(args: ComparisonExportArgs) {
+  const { leftLabel, rightLabel, mergedAgeKeys, leftRows, rightRows, stats } = args;
+
+  // Per-percentile aggregates
+  const perPercentile: Array<{ key: string; label: string; sum: number; count: number; avg: string }> = [];
+  for (const p of PERCENTILE_KEYS) {
+    let sum = 0, cnt = 0;
+    for (const key of mergedAgeKeys) {
+      const a = findRow(leftRows, key);
+      const b = findRow(rightRows, key);
+      if (a && b && a[p] !== b[p]) { sum += Math.abs(b[p] - a[p]); cnt++; }
+    }
+    perPercentile.push({
+      key: p, label: PERCENTILE_LABELS[p],
+      sum, count: cnt, avg: cnt ? (sum / cnt).toFixed(2) : "0",
+    });
+  }
+
+  // Per-age aggregates
+  const perAge = mergedAgeKeys.map((key) => {
+    const a = findRow(leftRows, key);
+    const b = findRow(rightRows, key);
+    let sum = 0, cnt = 0;
+    if (a && b) {
+      for (const p of PERCENTILE_KEYS) {
+        if (a[p] !== b[p]) { sum += Math.abs(b[p] - a[p]); cnt++; }
+      }
+    }
+    return {
+      key, sum, count: cnt,
+      avg: cnt ? (sum / cnt).toFixed(2) : "0",
+      status: a && !b ? "removed" : !a && b ? "added" : "compare",
+    };
+  });
+
+  // Build diff cells
+  const diffRows = mergedAgeKeys.map((key) => {
+    const a = findRow(leftRows, key);
+    const b = findRow(rightRows, key);
+    const status = a && !b ? "removed" : !a && b ? "added" : "compare";
+    const cells = PERCENTILE_KEYS.map((p) => {
+      const av = a?.[p];
+      const bv = b?.[p];
+      let html = "—";
+      let bg = "transparent";
+      if (av !== undefined && bv !== undefined) {
+        const d = bv - av;
+        if (d === 0) {
+          html = `<span style="color:#666">${av}</span>`;
+        } else {
+          bg = d > 0 ? "#d1fae5" : "#fee2e2";
+          const color = d > 0 ? "#065f46" : "#991b1b";
+          const sign = d > 0 ? "+" : "";
+          html = `<span style="color:${color};"><s style="opacity:.6">${av}</s> → <b>${bv}</b><br/><small>${sign}${d}</small></span>`;
+        }
+      } else if (av === undefined && bv !== undefined) {
+        bg = "#d1fae5";
+        html = `<span style="color:#065f46"><b>${bv}</b><br/><small>جديد</small></span>`;
+      } else if (av !== undefined && bv === undefined) {
+        bg = "#fee2e2";
+        html = `<span style="color:#991b1b"><s>${av}</s><br/><small>محذوف</small></span>`;
+      }
+      return `<td style="background:${bg};text-align:center;padding:6px;border:1px solid #e5e7eb;font-size:11px;">${html}</td>`;
+    }).join("");
+    const rowBg = status === "added" ? "background:#ecfdf5;" : status === "removed" ? "background:#fef2f2;" : "";
+    const badge = status === "added"
+      ? ' <span style="font-size:9px;border:1px solid #10b981;color:#065f46;padding:1px 4px;border-radius:4px;">جديد</span>'
+      : status === "removed"
+        ? ' <span style="font-size:9px;border:1px solid #ef4444;color:#991b1b;padding:1px 4px;border-radius:4px;">محذوف</span>'
+        : "";
+    return `<tr style="${rowBg}"><td style="padding:6px;border:1px solid #e5e7eb;font-weight:bold;white-space:nowrap;font-size:11px;">${key.replace("-", "–")} سنة${badge}</td>${cells}</tr>`;
+  }).join("");
+
+  const percentileHeaders = PERCENTILE_KEYS
+    .map((p) => `<th style="padding:6px;border:1px solid #e5e7eb;background:#f3f4f6;font-size:11px;">مئين ${PERCENTILE_LABELS[p]}</th>`)
+    .join("");
+
+  const summaryCards = [
+    { label: "متطابقة", value: stats.identical, color: "#6b7280" },
+    { label: "بها تغيير", value: stats.changed, color: "#d97706" },
+    { label: "مضافة (ب)", value: stats.added, color: "#059669" },
+    { label: "محذوفة (ب)", value: stats.removed, color: "#dc2626" },
+    { label: "متوسط |Δ|", value: stats.avgAbsDelta, color: "#2563eb" },
+  ].map((c) => `
+    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;text-align:center;min-width:90px;">
+      <div style="font-size:10px;color:#6b7280;">${c.label}</div>
+      <div style="font-size:18px;font-weight:900;color:${c.color};font-family:monospace;">${c.value}</div>
+    </div>`).join("");
+
+  const perPercentileRows = perPercentile.map((p) => `
+    <tr>
+      <td style="padding:6px;border:1px solid #e5e7eb;font-weight:bold;">مئين ${p.label}</td>
+      <td style="padding:6px;border:1px solid #e5e7eb;text-align:center;font-family:monospace;">${p.sum}</td>
+      <td style="padding:6px;border:1px solid #e5e7eb;text-align:center;font-family:monospace;">${p.count}</td>
+      <td style="padding:6px;border:1px solid #e5e7eb;text-align:center;font-family:monospace;">${p.avg}</td>
+    </tr>`).join("");
+
+  const perAgeRows = perAge.map((r) => `
+    <tr>
+      <td style="padding:6px;border:1px solid #e5e7eb;font-weight:bold;">${r.key.replace("-", "–")} سنة</td>
+      <td style="padding:6px;border:1px solid #e5e7eb;text-align:center;font-family:monospace;">${r.sum}</td>
+      <td style="padding:6px;border:1px solid #e5e7eb;text-align:center;font-family:monospace;">${r.count}</td>
+      <td style="padding:6px;border:1px solid #e5e7eb;text-align:center;font-family:monospace;">${r.avg}</td>
+    </tr>`).join("");
+
+  const html = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<title>تقرير مقارنة المعايير - ${leftLabel} vs ${rightLabel}</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm; }
+  body { font-family: -apple-system, "Segoe UI", Tahoma, Arial, sans-serif; color:#111827; margin:0; padding:16px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 18px 0 8px; padding-bottom:4px; border-bottom:2px solid #e5e7eb; }
+  table { border-collapse: collapse; width: 100%; }
+  .meta { font-size: 12px; color:#4b5563; margin-bottom: 12px; }
+  .summary { display:flex; gap:8px; flex-wrap:wrap; margin: 12px 0; }
+  .footer { margin-top: 16px; font-size: 10px; color:#6b7280; text-align:center; }
+  @media print { .no-print { display:none; } }
+  .actions { position:fixed; top:8px; left:8px; }
+  .actions button { padding:8px 14px; border-radius:6px; border:1px solid #2563eb; background:#2563eb; color:#fff; font-weight:bold; cursor:pointer; }
+</style>
+</head>
+<body>
+  <div class="actions no-print">
+    <button onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+  </div>
+  <h1>تقرير مقارنة جداول المعايير</h1>
+  <div class="meta">
+    <div><b>النسخة (أ):</b> ${leftLabel}</div>
+    <div><b>النسخة (ب):</b> ${rightLabel}</div>
+    <div><b>تاريخ التصدير:</b> ${new Date().toLocaleString("ar")}</div>
+  </div>
+
+  <div class="summary">${summaryCards}</div>
+
+  <h2>الفروقات التفصيلية</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="padding:6px;border:1px solid #e5e7eb;background:#f3f4f6;font-size:11px;">الفئة العمرية</th>
+        ${percentileHeaders}
+      </tr>
+    </thead>
+    <tbody>${diffRows || `<tr><td colspan="${PERCENTILE_KEYS.length + 1}" style="padding:16px;text-align:center;color:#6b7280;">لا توجد بيانات</td></tr>`}</tbody>
+  </table>
+
+  <h2>ملخص Δ لكل مئين</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="padding:6px;border:1px solid #e5e7eb;background:#f3f4f6;">المئين</th>
+        <th style="padding:6px;border:1px solid #e5e7eb;background:#f3f4f6;">إجمالي |Δ|</th>
+        <th style="padding:6px;border:1px solid #e5e7eb;background:#f3f4f6;">عدد الخلايا</th>
+        <th style="padding:6px;border:1px solid #e5e7eb;background:#f3f4f6;">متوسط |Δ|</th>
+      </tr>
+    </thead>
+    <tbody>${perPercentileRows}</tbody>
+  </table>
+
+  <h2>ملخص Δ لكل فئة عمرية</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="padding:6px;border:1px solid #e5e7eb;background:#f3f4f6;">الفئة العمرية</th>
+        <th style="padding:6px;border:1px solid #e5e7eb;background:#f3f4f6;">إجمالي |Δ|</th>
+        <th style="padding:6px;border:1px solid #e5e7eb;background:#f3f4f6;">عدد الخلايا</th>
+        <th style="padding:6px;border:1px solid #e5e7eb;background:#f3f4f6;">متوسط |Δ|</th>
+      </tr>
+    </thead>
+    <tbody>${perAgeRows}</tbody>
+  </table>
+
+  <div class="footer">تم إنشاء هذا التقرير تلقائياً من نظام إدارة معايير اختبار رافن CPM</div>
+  <script>
+    window.addEventListener("load", function () {
+      setTimeout(function () { window.print(); }, 400);
+    });
+  </script>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, "_blank");
+  if (!w) {
+    URL.revokeObjectURL(url);
+    toast.error("تعذّر فتح نافذة الطباعة. يرجى السماح بالنوافذ المنبثقة.");
+    return;
+  }
+  toast.success("تم فتح التقرير — استخدم زر الطباعة لحفظه PDF");
+  // Revoke later to ensure window has loaded
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 function DiffCell({ aValue, bValue }: { aValue?: number; bValue?: number }) {
