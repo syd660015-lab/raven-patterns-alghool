@@ -1387,8 +1387,16 @@ function exportComparisonPdf(args: ComparisonExportArgs) {
   h2 { font-size: 14px; margin: 18px 0 8px; padding-bottom:4px; border-bottom:2px solid #e5e7eb; }
   table { border-collapse: collapse; width: 100%; }
   .meta { font-size: 12px; color:#4b5563; margin-bottom: 12px; }
+  .meta-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px 16px; padding:8px 12px; border:1px solid #e5e7eb; border-radius:8px; background:#f9fafb; margin-bottom:12px; font-size:12px; }
+  .meta-grid .lbl { color:#6b7280; font-size:10px; }
+  .meta-grid .val { color:#111827; font-weight:bold; }
+  .case-pill { display:inline-block; background:#1e3a8a; color:#fff; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:bold; margin-inline-start:8px; vertical-align:middle; }
   .summary { display:flex; gap:8px; flex-wrap:wrap; margin: 12px 0; }
-  .footer { margin-top: 16px; font-size: 10px; color:#6b7280; text-align:center; }
+  .footer { margin-top: 18px; padding-top:10px; border-top:1px solid #e5e7eb; font-size: 10px; color:#6b7280; }
+  .footer .sig-row { display:flex; justify-content:space-between; align-items:flex-end; gap:24px; margin-bottom:8px; }
+  .footer .sig-box { flex:1; }
+  .footer .sig-line { border-top:1px solid #9ca3af; margin-top:32px; padding-top:4px; text-align:center; font-size:10px; color:#374151; }
+  .footer .gen-note { text-align:center; font-style:italic; }
   @media print { .no-print { display:none; } }
   .actions { position:fixed; top:8px; left:8px; }
   .actions button { padding:8px 14px; border-radius:6px; border:1px solid #2563eb; background:#2563eb; color:#fff; font-weight:bold; cursor:pointer; }
