@@ -1261,7 +1261,8 @@ function exportComparisonCsv(args: ComparisonExportArgs) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `comparison_${safeFileName(leftLabel)}_vs_${safeFileName(rightLabel)}_${timestamp()}.csv`;
+  const filePrefix = meta?.caseFileNo ? `${safeFileName(meta.caseFileNo)}_` : "";
+  a.download = `${filePrefix}comparison_${safeFileName(leftLabel)}_vs_${safeFileName(rightLabel)}_${timestamp()}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -1270,7 +1271,7 @@ function exportComparisonCsv(args: ComparisonExportArgs) {
 }
 
 function exportComparisonPdf(args: ComparisonExportArgs) {
-  const { leftLabel, rightLabel, mergedAgeKeys, leftRows, rightRows, stats } = args;
+  const { leftLabel, rightLabel, mergedAgeKeys, leftRows, rightRows, stats, meta } = args;
 
   // Per-percentile aggregates
   const perPercentile: Array<{ key: string; label: string; sum: number; count: number; avg: string }> = [];
