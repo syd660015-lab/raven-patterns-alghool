@@ -2,8 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  Check, ClipboardList, Copy, Download, FileJson, FileSpreadsheet, History,
-  Loader2, Lock, Plus, Save, Star, Trash2, Upload,
+  ArrowLeftRight, Check, ClipboardList, Copy, Download, FileJson, FileSpreadsheet,
+  History, Loader2, Lock, Minus, Plus, Save, Star, Trash2, TrendingDown, TrendingUp, Upload,
 } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { Button } from "@/components/ui/button";
