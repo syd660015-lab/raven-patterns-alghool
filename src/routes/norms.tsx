@@ -1083,7 +1083,7 @@ function CompareDialog({
                 onClick={() =>
                   exportComparisonCsv({
                     leftLabel, rightLabel, mergedAgeKeys,
-                    leftRows, rightRows, stats,
+                    leftRows, rightRows, stats, meta: reportMeta,
                   })
                 }
               >
@@ -1094,7 +1094,7 @@ function CompareDialog({
                 onClick={() =>
                   exportComparisonPdf({
                     leftLabel, rightLabel, mergedAgeKeys,
-                    leftRows, rightRows, stats,
+                    leftRows, rightRows, stats, meta: reportMeta,
                   })
                 }
               >
