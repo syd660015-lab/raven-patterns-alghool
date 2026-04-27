@@ -2,8 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  Check, ClipboardList, Copy, Download, FileJson, FileSpreadsheet, History,
-  Loader2, Lock, Plus, Save, Star, Trash2, Upload,
+  ArrowLeftRight, Check, ClipboardList, Copy, Download, FileJson, FileSpreadsheet,
+  History, Loader2, Lock, Minus, Plus, Save, Star, Trash2, TrendingDown, TrendingUp, Upload,
 } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { Button } from "@/components/ui/button";
@@ -402,6 +402,7 @@ function NormsPage() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <ImportButton onImport={importFromFile} />
+            <CompareDialog tables={tables} currentId={selectedId} />
             <NewVersionDialog
               tables={tables}
               currentId={selectedId}
@@ -726,5 +727,360 @@ function ImportButton({ onImport }: { onImport: (file: File) => Promise<void> })
         استيراد
       </Button>
     </>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Compare two versions visually (cell-by-cell diff)
+// ──────────────────────────────────────────────────────────────────────────────
+
+const BUILTIN_COMPARE_ID = "__builtin__";
+
+function CompareDialog({
+  tables, currentId,
+}: {
+  tables: NormTable[];
+  currentId: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [leftId, setLeftId] = useState<string>("");
+  const [rightId, setRightId] = useState<string>("");
+  const [leftRows, setLeftRows] = useState<NormRow[] | null>(null);
+  const [rightRows, setRightRows] = useState<NormRow[] | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // Initialize sensible defaults when opened
+  useEffect(() => {
+    if (!open) return;
+    const active = tables.find((t) => t.is_active);
+    const initialLeft = currentId ?? active?.id ?? tables[0]?.id ?? "";
+    setLeftId(initialLeft);
+    const other = tables.find((t) => t.id !== initialLeft);
+    setRightId(other?.id ?? BUILTIN_COMPARE_ID);
+  }, [open, currentId, tables]);
+
+  // Fetch rows whenever a side changes
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    async function loadSide(id: string): Promise<NormRow[]> {
+      if (!id) return [];
+      if (id === BUILTIN_COMPARE_ID) {
+        return CPM_NORMS.map((r) => ({
+          age_min: r.ageMin, age_max: r.ageMax,
+          p5: r.p5, p10: r.p10, p25: r.p25, p50: r.p50, p75: r.p75, p90: r.p90, p95: r.p95,
+        }));
+      }
+      const { data } = await supabase
+        .from("norm_rows")
+        .select("age_min, age_max, p5, p10, p25, p50, p75, p90, p95")
+        .eq("table_id", id)
+        .order("age_min", { ascending: true });
+      return (data ?? []) as NormRow[];
+    }
+    (async () => {
+      setBusy(true);
+      const [l, r] = await Promise.all([loadSide(leftId), loadSide(rightId)]);
+      if (cancelled) return;
+      setLeftRows(l);
+      setRightRows(r);
+      setBusy(false);
+    })();
+    return () => { cancelled = true; };
+  }, [open, leftId, rightId]);
+
+  const leftLabel = leftId === BUILTIN_COMPARE_ID
+    ? "النسخة المدمجة (القياسية)"
+    : tables.find((t) => t.id === leftId)?.name ?? "—";
+  const rightLabel = rightId === BUILTIN_COMPARE_ID
+    ? "النسخة المدمجة (القياسية)"
+    : tables.find((t) => t.id === rightId)?.name ?? "—";
+
+  // Build merged set of age groups (by age_min-age_max key)
+  const mergedAgeKeys = useMemo(() => {
+    const keys = new Set<string>();
+    [...(leftRows ?? []), ...(rightRows ?? [])].forEach((r) =>
+      keys.add(`${r.age_min}-${r.age_max}`)
+    );
+    return Array.from(keys).sort((a, b) => {
+      const [a1] = a.split("-").map(Number);
+      const [b1] = b.split("-").map(Number);
+      return a1 - b1;
+    });
+  }, [leftRows, rightRows]);
+
+  function rowFor(rows: NormRow[] | null, key: string): NormRow | undefined {
+    if (!rows) return undefined;
+    return rows.find((r) => `${r.age_min}-${r.age_max}` === key);
+  }
+
+  // Stats
+  const stats = useMemo(() => {
+    let changed = 0, added = 0, removed = 0, identical = 0;
+    let totalDelta = 0, deltaCount = 0;
+    for (const k of mergedAgeKeys) {
+      const a = rowFor(leftRows, k);
+      const b = rowFor(rightRows, k);
+      if (a && !b) { removed++; continue; }
+      if (!a && b) { added++; continue; }
+      if (!a || !b) continue;
+      let rowChanged = false;
+      for (const p of PERCENTILE_KEYS) {
+        if (a[p] !== b[p]) {
+          rowChanged = true;
+          totalDelta += Math.abs(b[p] - a[p]);
+          deltaCount++;
+        }
+      }
+      if (rowChanged) changed++; else identical++;
+    }
+    return {
+      changed, added, removed, identical,
+      avgAbsDelta: deltaCount ? (totalDelta / deltaCount).toFixed(2) : "0",
+      cellChanges: deltaCount,
+    };
+  }, [mergedAgeKeys, leftRows, rightRows]);
+
+  const sameSide = leftId && rightId && leftId === rightId;
+
+  // Build select options including the built-in standard reference
+  const options = useMemo(() => [
+    ...tables.map((t) => ({ id: t.id, name: t.name, is_active: t.is_active, is_default: t.is_default })),
+    { id: BUILTIN_COMPARE_ID, name: "النسخة المدمجة (القياسية)", is_active: false, is_default: true },
+  ], [tables]);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" disabled={tables.length === 0}>
+          <ArrowLeftRight className="ms-2 h-4 w-4" />
+          مقارنة
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ArrowLeftRight className="h-5 w-5 text-primary" />
+            مقارنة بصرية بين نسختين من المعايير
+          </DialogTitle>
+          <DialogDescription>
+            اختر نسختين لعرض الفروقات في كل خلية. يفيدك ذلك قبل تفعيل نسخة جديدة أو التبديل بين نسختين.
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Side selectors */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs">النسخة (أ) — المرجع</Label>
+            <select
+              className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+              value={leftId}
+              onChange={(e) => setLeftId(e.target.value)}
+            >
+              {options.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}{t.is_active ? " ★" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label className="text-xs">النسخة (ب) — المُقارَنة</Label>
+            <select
+              className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+              value={rightId}
+              onChange={(e) => setRightId(e.target.value)}
+            >
+              {options.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}{t.is_active ? " ★" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {sameSide && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-xs">
+            النسختان متطابقتان — اختر نسخة مختلفة في أحد الجانبين لعرض الفروقات.
+          </div>
+        )}
+
+        {/* Summary */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <SummaryCell label="صفوف متطابقة" value={stats.identical} tone="neutral" />
+          <SummaryCell label="صفوف بها تغيير" value={stats.changed} tone="warn" />
+          <SummaryCell label="مضافة في (ب)" value={stats.added} tone="add" />
+          <SummaryCell label="محذوفة في (ب)" value={stats.removed} tone="remove" />
+          <SummaryCell label="متوسط فرق الخلايا" value={stats.avgAbsDelta} tone="neutral" />
+        </div>
+
+        {/* Diff table */}
+        <Card className="border-border/60 overflow-hidden">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              {busy ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : (
+                <table className="w-full text-xs">
+                  <thead className="bg-secondary/60">
+                    <tr>
+                      <th className="px-2 py-2 text-start font-bold sticky start-0 bg-secondary/60 z-10">
+                        الفئة العمرية
+                      </th>
+                      {PERCENTILE_KEYS.map((k) => (
+                        <th key={k} className="px-2 py-2 font-bold text-center min-w-[88px]">
+                          مئين {PERCENTILE_LABELS[k]}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mergedAgeKeys.length === 0 && (
+                      <tr>
+                        <td colSpan={PERCENTILE_KEYS.length + 1} className="text-center py-8 text-muted-foreground">
+                          لا توجد بيانات للعرض.
+                        </td>
+                      </tr>
+                    )}
+                    {mergedAgeKeys.map((key) => {
+                      const a = rowFor(leftRows, key);
+                      const b = rowFor(rightRows, key);
+                      const status = a && !b ? "removed" : !a && b ? "added" : "compare";
+                      return (
+                        <tr
+                          key={key}
+                          className={cn(
+                            "border-t border-border/60 align-top",
+                            status === "added" && "bg-emerald-50/60 dark:bg-emerald-950/20",
+                            status === "removed" && "bg-rose-50/60 dark:bg-rose-950/20",
+                          )}
+                        >
+                          <td className="px-2 py-2 font-bold whitespace-nowrap sticky start-0 bg-inherit">
+                            {key.replace("-", "–")} سنة
+                            {status === "added" && (
+                              <Badge variant="outline" className="ms-1 text-[10px] border-emerald-400 text-emerald-700">جديد</Badge>
+                            )}
+                            {status === "removed" && (
+                              <Badge variant="outline" className="ms-1 text-[10px] border-rose-400 text-rose-700">محذوف</Badge>
+                            )}
+                          </td>
+                          {PERCENTILE_KEYS.map((p) => {
+                            const av = a?.[p];
+                            const bv = b?.[p];
+                            return (
+                              <td key={p} className="px-1 py-1.5 text-center">
+                                <DiffCell aValue={av} bValue={bv} />
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Legend */}
+        <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+          <span className="font-bold">دلالات الألوان:</span>
+          <LegendDot className="bg-muted" label={`(أ) ${leftLabel}`} />
+          <LegendDot className="bg-emerald-500" label="ارتفاع في (ب)" />
+          <LegendDot className="bg-rose-500" label="انخفاض في (ب)" />
+          <LegendDot className="bg-amber-400" label="بدون تغيير" />
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>إغلاق</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DiffCell({ aValue, bValue }: { aValue?: number; bValue?: number }) {
+  if (aValue === undefined && bValue === undefined) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  if (aValue === undefined) {
+    return (
+      <div className="flex flex-col items-center gap-0.5">
+        <span className="text-muted-foreground line-through text-[10px]">—</span>
+        <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">{bValue}</span>
+      </div>
+    );
+  }
+  if (bValue === undefined) {
+    return (
+      <div className="flex flex-col items-center gap-0.5">
+        <span className="font-mono text-muted-foreground line-through">{aValue}</span>
+        <span className="text-rose-700 dark:text-rose-400 text-[10px]">محذوف</span>
+      </div>
+    );
+  }
+  const delta = bValue - aValue;
+  if (delta === 0) {
+    return (
+      <div className="flex items-center justify-center gap-1 text-muted-foreground">
+        <span className="font-mono">{aValue}</span>
+        <Minus className="h-3 w-3 opacity-50" />
+      </div>
+    );
+  }
+  const up = delta > 0;
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center gap-0.5 rounded-md px-1.5 py-1",
+        up
+          ? "bg-emerald-100/70 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300"
+          : "bg-rose-100/70 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300"
+      )}
+    >
+      <div className="flex items-center gap-1 font-mono text-[11px]">
+        <span className="opacity-60 line-through">{aValue}</span>
+        <span>→</span>
+        <span className="font-bold">{bValue}</span>
+      </div>
+      <div className="flex items-center gap-0.5 text-[10px] font-bold">
+        {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+        {up ? "+" : ""}{delta}
+      </div>
+    </div>
+  );
+}
+
+function SummaryCell({
+  label, value, tone,
+}: {
+  label: string;
+  value: string | number;
+  tone: "neutral" | "warn" | "add" | "remove";
+}) {
+  const toneClass = {
+    neutral: "bg-secondary/60 text-foreground",
+    warn: "bg-amber-100/70 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300 border-amber-300/60",
+    add: "bg-emerald-100/70 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300 border-emerald-300/60",
+    remove: "bg-rose-100/70 dark:bg-rose-950/40 text-rose-900 dark:text-rose-300 border-rose-300/60",
+  }[tone];
+  return (
+    <div className={cn("rounded-lg border border-border px-2 py-1.5 text-center", toneClass)}>
+      <div className="text-[10px] opacity-80">{label}</div>
+      <div className="font-mono font-black text-base leading-tight">{value}</div>
+    </div>
+  );
+}
+
+function LegendDot({ className, label }: { className: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={cn("inline-block h-2.5 w-2.5 rounded-full", className)} />
+      {label}
+    </span>
   );
 }
