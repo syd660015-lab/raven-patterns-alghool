@@ -402,6 +402,7 @@ function NormsPage() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <ImportButton onImport={importFromFile} />
+            <CompareDialog tables={tables} currentId={selectedId} />
             <NewVersionDialog
               tables={tables}
               currentId={selectedId}
