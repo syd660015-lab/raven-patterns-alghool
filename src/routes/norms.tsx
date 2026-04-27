@@ -1458,7 +1458,23 @@ function exportComparisonPdf(args: ComparisonExportArgs) {
     <tbody>${perAgeRows}</tbody>
   </table>
 
-  <div class="footer">تم إنشاء هذا التقرير تلقائياً من نظام إدارة معايير اختبار رافن CPM</div>
+  <div class="footer">
+    <div class="sig-row">
+      <div class="sig-box">
+        <div class="lbl">المُختص المُعِدّ:</div>
+        <div class="sig-line">${meta?.specialistName ? escapeHtml(meta.specialistName) : "—"}</div>
+      </div>
+      <div class="sig-box">
+        <div class="lbl">تاريخ الجلسة:</div>
+        <div class="sig-line">${meta?.sessionDate ? escapeHtml(formatDateAr(meta.sessionDate)) : "—"}</div>
+      </div>
+      <div class="sig-box">
+        <div class="lbl">رقم ملف الحالة:</div>
+        <div class="sig-line">${meta?.caseFileNo ? escapeHtml(meta.caseFileNo) : "—"}</div>
+      </div>
+    </div>
+    <div class="gen-note">تم إنشاء هذا التقرير تلقائياً من نظام إدارة معايير اختبار رافن CPM</div>
+  </div>
   <script>
     window.addEventListener("load", function () {
       setTimeout(function () { window.print(); }, 400);
