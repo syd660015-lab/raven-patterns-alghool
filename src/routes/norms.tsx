@@ -1247,6 +1247,14 @@ function exportComparisonCsv(args: ComparisonExportArgs) {
     lines.push(`"${key.replace("-", "–")} سنة",${sum},${cnt},${avg}`);
   }
 
+  // Footer
+  lines.push("");
+  lines.push(`— تذييل التقرير —`);
+  if (meta?.specialistName) lines.push(`المُختص,${esc(meta.specialistName)}`);
+  if (meta?.sessionDate) lines.push(`تاريخ الجلسة,${esc(formatDateAr(meta.sessionDate))}`);
+  if (meta?.caseFileNo) lines.push(`رقم ملف الحالة,${esc(meta.caseFileNo)}`);
+  lines.push(`تم التوليد بواسطة,${esc("نظام إدارة معايير اختبار رافن CPM")}`);
+
   // UTF-8 BOM for Excel Arabic compatibility
   const csv = "\uFEFF" + lines.join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
