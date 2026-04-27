@@ -749,6 +749,39 @@ function CompareDialog({
   const [rightRows, setRightRows] = useState<NormRow[] | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Optional report header/footer fields (persist locally for convenience)
+  const [specialistName, setSpecialistName] = useState<string>("");
+  const [sessionDate, setSessionDate] = useState<string>(
+    () => new Date().toISOString().slice(0, 10),
+  );
+  const [caseFileNo, setCaseFileNo] = useState<string>("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem("norms.reportMeta");
+    if (saved) {
+      try {
+        const o = JSON.parse(saved);
+        if (typeof o.specialistName === "string") setSpecialistName(o.specialistName);
+        if (typeof o.caseFileNo === "string") setCaseFileNo(o.caseFileNo);
+      } catch { /* ignore */ }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      "norms.reportMeta",
+      JSON.stringify({ specialistName, caseFileNo }),
+    );
+  }, [specialistName, caseFileNo]);
+
+  const reportMeta: ReportMeta = {
+    specialistName: specialistName.trim(),
+    sessionDate: sessionDate.trim(),
+    caseFileNo: caseFileNo.trim(),
+  };
+
   // Initialize sensible defaults when opened
   useEffect(() => {
     if (!open) return;
