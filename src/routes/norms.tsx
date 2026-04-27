@@ -933,6 +933,43 @@ function CompareDialog({
           </div>
         </div>
 
+        {/* Optional report header/footer fields */}
+        <details className="rounded-lg border border-border/60 bg-secondary/30 px-3 py-2">
+          <summary className="cursor-pointer select-none text-xs font-bold flex items-center gap-2">
+            <ClipboardList className="h-3.5 w-3.5 text-primary" />
+            بيانات التقرير (اختيارية) — تُضمَّن في رأس وتذييل CSV/PDF
+          </summary>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+            <div>
+              <Label className="text-xs">اسم المُختص</Label>
+              <Input
+                value={specialistName}
+                onChange={(e) => setSpecialistName(e.target.value)}
+                placeholder="مثال: د. سارة الأحمد"
+                className="h-9"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">تاريخ الجلسة</Label>
+              <Input
+                type="date"
+                value={sessionDate}
+                onChange={(e) => setSessionDate(e.target.value)}
+                className="h-9"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">رقم ملف الحالة</Label>
+              <Input
+                value={caseFileNo}
+                onChange={(e) => setCaseFileNo(e.target.value)}
+                placeholder="مثال: CASE-2026-0142"
+                className="h-9"
+              />
+            </div>
+          </div>
+        </details>
+
         {sameSide && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-xs">
             النسختان متطابقتان — اختر نسخة مختلفة في أحد الجانبين لعرض الفروقات.
