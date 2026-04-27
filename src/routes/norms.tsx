@@ -1160,14 +1160,18 @@ function timestamp(): string {
 }
 
 function exportComparisonCsv(args: ComparisonExportArgs) {
-  const { leftLabel, rightLabel, mergedAgeKeys, leftRows, rightRows, stats } = args;
+  const { leftLabel, rightLabel, mergedAgeKeys, leftRows, rightRows, stats, meta } = args;
+  const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
 
   const lines: string[] = [];
   // Header section
   lines.push(`تقرير مقارنة جداول المعايير`);
-  lines.push(`النسخة (أ),"${leftLabel.replace(/"/g, '""')}"`);
-  lines.push(`النسخة (ب),"${rightLabel.replace(/"/g, '""')}"`);
-  lines.push(`تاريخ التصدير,"${new Date().toLocaleString("ar")}"`);
+  if (meta?.specialistName) lines.push(`اسم المُختص,${esc(meta.specialistName)}`);
+  if (meta?.sessionDate) lines.push(`تاريخ الجلسة,${esc(formatDateAr(meta.sessionDate))}`);
+  if (meta?.caseFileNo) lines.push(`رقم ملف الحالة,${esc(meta.caseFileNo)}`);
+  lines.push(`النسخة (أ),${esc(leftLabel)}`);
+  lines.push(`النسخة (ب),${esc(rightLabel)}`);
+  lines.push(`تاريخ التصدير,${esc(new Date().toLocaleString("ar"))}`);
   lines.push("");
   // Summary
   lines.push(`ملخص,القيمة`);
