@@ -1112,6 +1112,12 @@ function CompareDialog({
 
 // ---------- Comparison Export Helpers ----------
 
+interface ReportMeta {
+  specialistName: string;
+  sessionDate: string;
+  caseFileNo: string;
+}
+
 interface ComparisonExportArgs {
   leftLabel: string;
   rightLabel: string;
@@ -1122,6 +1128,20 @@ interface ComparisonExportArgs {
     changed: number; added: number; removed: number; identical: number;
     avgAbsDelta: string; cellChanges: number;
   };
+  meta?: ReportMeta;
+}
+
+function formatDateAr(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("ar", { year: "numeric", month: "long", day: "numeric" });
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 function findRow(rows: NormRow[] | null, key: string): NormRow | undefined {
