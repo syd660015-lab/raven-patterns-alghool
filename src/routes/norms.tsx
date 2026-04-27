@@ -1406,11 +1406,17 @@ function exportComparisonPdf(args: ComparisonExportArgs) {
   <div class="actions no-print">
     <button onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
   </div>
-  <h1>تقرير مقارنة جداول المعايير</h1>
-  <div class="meta">
-    <div><b>النسخة (أ):</b> ${leftLabel}</div>
-    <div><b>النسخة (ب):</b> ${rightLabel}</div>
-    <div><b>تاريخ التصدير:</b> ${new Date().toLocaleString("ar")}</div>
+  <h1>
+    تقرير مقارنة جداول المعايير
+    ${meta?.caseFileNo ? `<span class="case-pill">ملف: ${escapeHtml(meta.caseFileNo)}</span>` : ""}
+  </h1>
+  <div class="meta-grid">
+    <div><div class="lbl">النسخة (أ) — المرجع</div><div class="val">${escapeHtml(leftLabel)}</div></div>
+    <div><div class="lbl">النسخة (ب) — المُقارَنة</div><div class="val">${escapeHtml(rightLabel)}</div></div>
+    <div><div class="lbl">تاريخ التصدير</div><div class="val">${new Date().toLocaleString("ar")}</div></div>
+    ${meta?.specialistName ? `<div><div class="lbl">اسم المُختص</div><div class="val">${escapeHtml(meta.specialistName)}</div></div>` : ""}
+    ${meta?.sessionDate ? `<div><div class="lbl">تاريخ الجلسة</div><div class="val">${escapeHtml(formatDateAr(meta.sessionDate))}</div></div>` : ""}
+    ${meta?.caseFileNo ? `<div><div class="lbl">رقم ملف الحالة</div><div class="val">${escapeHtml(meta.caseFileNo)}</div></div>` : ""}
   </div>
 
   <div class="summary">${summaryCards}</div>
