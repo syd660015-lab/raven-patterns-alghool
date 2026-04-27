@@ -749,6 +749,39 @@ function CompareDialog({
   const [rightRows, setRightRows] = useState<NormRow[] | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Optional report header/footer fields (persist locally for convenience)
+  const [specialistName, setSpecialistName] = useState<string>("");
+  const [sessionDate, setSessionDate] = useState<string>(
+    () => new Date().toISOString().slice(0, 10),
+  );
+  const [caseFileNo, setCaseFileNo] = useState<string>("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem("norms.reportMeta");
+    if (saved) {
+      try {
+        const o = JSON.parse(saved);
+        if (typeof o.specialistName === "string") setSpecialistName(o.specialistName);
+        if (typeof o.caseFileNo === "string") setCaseFileNo(o.caseFileNo);
+      } catch { /* ignore */ }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      "norms.reportMeta",
+      JSON.stringify({ specialistName, caseFileNo }),
+    );
+  }, [specialistName, caseFileNo]);
+
+  const reportMeta: ReportMeta = {
+    specialistName: specialistName.trim(),
+    sessionDate: sessionDate.trim(),
+    caseFileNo: caseFileNo.trim(),
+  };
+
   // Initialize sensible defaults when opened
   useEffect(() => {
     if (!open) return;
@@ -900,6 +933,43 @@ function CompareDialog({
           </div>
         </div>
 
+        {/* Optional report header/footer fields */}
+        <details className="rounded-lg border border-border/60 bg-secondary/30 px-3 py-2">
+          <summary className="cursor-pointer select-none text-xs font-bold flex items-center gap-2">
+            <ClipboardList className="h-3.5 w-3.5 text-primary" />
+            بيانات التقرير (اختيارية) — تُضمَّن في رأس وتذييل CSV/PDF
+          </summary>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+            <div>
+              <Label className="text-xs">اسم المُختص</Label>
+              <Input
+                value={specialistName}
+                onChange={(e) => setSpecialistName(e.target.value)}
+                placeholder="مثال: د. سارة الأحمد"
+                className="h-9"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">تاريخ الجلسة</Label>
+              <Input
+                type="date"
+                value={sessionDate}
+                onChange={(e) => setSessionDate(e.target.value)}
+                className="h-9"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">رقم ملف الحالة</Label>
+              <Input
+                value={caseFileNo}
+                onChange={(e) => setCaseFileNo(e.target.value)}
+                placeholder="مثال: CASE-2026-0142"
+                className="h-9"
+              />
+            </div>
+          </div>
+        </details>
+
         {sameSide && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-xs">
             النسختان متطابقتان — اختر نسخة مختلفة في أحد الجانبين لعرض الفروقات.
@@ -1013,7 +1083,7 @@ function CompareDialog({
                 onClick={() =>
                   exportComparisonCsv({
                     leftLabel, rightLabel, mergedAgeKeys,
-                    leftRows, rightRows, stats,
+                    leftRows, rightRows, stats, meta: reportMeta,
                   })
                 }
               >
@@ -1024,7 +1094,7 @@ function CompareDialog({
                 onClick={() =>
                   exportComparisonPdf({
                     leftLabel, rightLabel, mergedAgeKeys,
-                    leftRows, rightRows, stats,
+                    leftRows, rightRows, stats, meta: reportMeta,
                   })
                 }
               >
@@ -1042,6 +1112,12 @@ function CompareDialog({
 
 // ---------- Comparison Export Helpers ----------
 
+interface ReportMeta {
+  specialistName: string;
+  sessionDate: string;
+  caseFileNo: string;
+}
+
 interface ComparisonExportArgs {
   leftLabel: string;
   rightLabel: string;
@@ -1052,6 +1128,20 @@ interface ComparisonExportArgs {
     changed: number; added: number; removed: number; identical: number;
     avgAbsDelta: string; cellChanges: number;
   };
+  meta?: ReportMeta;
+}
+
+function formatDateAr(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("ar", { year: "numeric", month: "long", day: "numeric" });
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 function findRow(rows: NormRow[] | null, key: string): NormRow | undefined {
@@ -1070,14 +1160,18 @@ function timestamp(): string {
 }
 
 function exportComparisonCsv(args: ComparisonExportArgs) {
-  const { leftLabel, rightLabel, mergedAgeKeys, leftRows, rightRows, stats } = args;
+  const { leftLabel, rightLabel, mergedAgeKeys, leftRows, rightRows, stats, meta } = args;
+  const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
 
   const lines: string[] = [];
   // Header section
   lines.push(`تقرير مقارنة جداول المعايير`);
-  lines.push(`النسخة (أ),"${leftLabel.replace(/"/g, '""')}"`);
-  lines.push(`النسخة (ب),"${rightLabel.replace(/"/g, '""')}"`);
-  lines.push(`تاريخ التصدير,"${new Date().toLocaleString("ar")}"`);
+  if (meta?.specialistName) lines.push(`اسم المُختص,${esc(meta.specialistName)}`);
+  if (meta?.sessionDate) lines.push(`تاريخ الجلسة,${esc(formatDateAr(meta.sessionDate))}`);
+  if (meta?.caseFileNo) lines.push(`رقم ملف الحالة,${esc(meta.caseFileNo)}`);
+  lines.push(`النسخة (أ),${esc(leftLabel)}`);
+  lines.push(`النسخة (ب),${esc(rightLabel)}`);
+  lines.push(`تاريخ التصدير,${esc(new Date().toLocaleString("ar"))}`);
   lines.push("");
   // Summary
   lines.push(`ملخص,القيمة`);
@@ -1153,13 +1247,22 @@ function exportComparisonCsv(args: ComparisonExportArgs) {
     lines.push(`"${key.replace("-", "–")} سنة",${sum},${cnt},${avg}`);
   }
 
+  // Footer
+  lines.push("");
+  lines.push(`— تذييل التقرير —`);
+  if (meta?.specialistName) lines.push(`المُختص,${esc(meta.specialistName)}`);
+  if (meta?.sessionDate) lines.push(`تاريخ الجلسة,${esc(formatDateAr(meta.sessionDate))}`);
+  if (meta?.caseFileNo) lines.push(`رقم ملف الحالة,${esc(meta.caseFileNo)}`);
+  lines.push(`تم التوليد بواسطة,${esc("نظام إدارة معايير اختبار رافن CPM")}`);
+
   // UTF-8 BOM for Excel Arabic compatibility
   const csv = "\uFEFF" + lines.join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `comparison_${safeFileName(leftLabel)}_vs_${safeFileName(rightLabel)}_${timestamp()}.csv`;
+  const filePrefix = meta?.caseFileNo ? `${safeFileName(meta.caseFileNo)}_` : "";
+  a.download = `${filePrefix}comparison_${safeFileName(leftLabel)}_vs_${safeFileName(rightLabel)}_${timestamp()}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -1168,7 +1271,7 @@ function exportComparisonCsv(args: ComparisonExportArgs) {
 }
 
 function exportComparisonPdf(args: ComparisonExportArgs) {
-  const { leftLabel, rightLabel, mergedAgeKeys, leftRows, rightRows, stats } = args;
+  const { leftLabel, rightLabel, mergedAgeKeys, leftRows, rightRows, stats, meta } = args;
 
   // Per-percentile aggregates
   const perPercentile: Array<{ key: string; label: string; sum: number; count: number; avg: string }> = [];
@@ -1284,8 +1387,16 @@ function exportComparisonPdf(args: ComparisonExportArgs) {
   h2 { font-size: 14px; margin: 18px 0 8px; padding-bottom:4px; border-bottom:2px solid #e5e7eb; }
   table { border-collapse: collapse; width: 100%; }
   .meta { font-size: 12px; color:#4b5563; margin-bottom: 12px; }
+  .meta-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px 16px; padding:8px 12px; border:1px solid #e5e7eb; border-radius:8px; background:#f9fafb; margin-bottom:12px; font-size:12px; }
+  .meta-grid .lbl { color:#6b7280; font-size:10px; }
+  .meta-grid .val { color:#111827; font-weight:bold; }
+  .case-pill { display:inline-block; background:#1e3a8a; color:#fff; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:bold; margin-inline-start:8px; vertical-align:middle; }
   .summary { display:flex; gap:8px; flex-wrap:wrap; margin: 12px 0; }
-  .footer { margin-top: 16px; font-size: 10px; color:#6b7280; text-align:center; }
+  .footer { margin-top: 18px; padding-top:10px; border-top:1px solid #e5e7eb; font-size: 10px; color:#6b7280; }
+  .footer .sig-row { display:flex; justify-content:space-between; align-items:flex-end; gap:24px; margin-bottom:8px; }
+  .footer .sig-box { flex:1; }
+  .footer .sig-line { border-top:1px solid #9ca3af; margin-top:32px; padding-top:4px; text-align:center; font-size:10px; color:#374151; }
+  .footer .gen-note { text-align:center; font-style:italic; }
   @media print { .no-print { display:none; } }
   .actions { position:fixed; top:8px; left:8px; }
   .actions button { padding:8px 14px; border-radius:6px; border:1px solid #2563eb; background:#2563eb; color:#fff; font-weight:bold; cursor:pointer; }
@@ -1295,11 +1406,17 @@ function exportComparisonPdf(args: ComparisonExportArgs) {
   <div class="actions no-print">
     <button onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
   </div>
-  <h1>تقرير مقارنة جداول المعايير</h1>
-  <div class="meta">
-    <div><b>النسخة (أ):</b> ${leftLabel}</div>
-    <div><b>النسخة (ب):</b> ${rightLabel}</div>
-    <div><b>تاريخ التصدير:</b> ${new Date().toLocaleString("ar")}</div>
+  <h1>
+    تقرير مقارنة جداول المعايير
+    ${meta?.caseFileNo ? `<span class="case-pill">ملف: ${escapeHtml(meta.caseFileNo)}</span>` : ""}
+  </h1>
+  <div class="meta-grid">
+    <div><div class="lbl">النسخة (أ) — المرجع</div><div class="val">${escapeHtml(leftLabel)}</div></div>
+    <div><div class="lbl">النسخة (ب) — المُقارَنة</div><div class="val">${escapeHtml(rightLabel)}</div></div>
+    <div><div class="lbl">تاريخ التصدير</div><div class="val">${new Date().toLocaleString("ar")}</div></div>
+    ${meta?.specialistName ? `<div><div class="lbl">اسم المُختص</div><div class="val">${escapeHtml(meta.specialistName)}</div></div>` : ""}
+    ${meta?.sessionDate ? `<div><div class="lbl">تاريخ الجلسة</div><div class="val">${escapeHtml(formatDateAr(meta.sessionDate))}</div></div>` : ""}
+    ${meta?.caseFileNo ? `<div><div class="lbl">رقم ملف الحالة</div><div class="val">${escapeHtml(meta.caseFileNo)}</div></div>` : ""}
   </div>
 
   <div class="summary">${summaryCards}</div>
@@ -1341,7 +1458,23 @@ function exportComparisonPdf(args: ComparisonExportArgs) {
     <tbody>${perAgeRows}</tbody>
   </table>
 
-  <div class="footer">تم إنشاء هذا التقرير تلقائياً من نظام إدارة معايير اختبار رافن CPM</div>
+  <div class="footer">
+    <div class="sig-row">
+      <div class="sig-box">
+        <div class="lbl">المُختص المُعِدّ:</div>
+        <div class="sig-line">${meta?.specialistName ? escapeHtml(meta.specialistName) : "—"}</div>
+      </div>
+      <div class="sig-box">
+        <div class="lbl">تاريخ الجلسة:</div>
+        <div class="sig-line">${meta?.sessionDate ? escapeHtml(formatDateAr(meta.sessionDate)) : "—"}</div>
+      </div>
+      <div class="sig-box">
+        <div class="lbl">رقم ملف الحالة:</div>
+        <div class="sig-line">${meta?.caseFileNo ? escapeHtml(meta.caseFileNo) : "—"}</div>
+      </div>
+    </div>
+    <div class="gen-note">تم إنشاء هذا التقرير تلقائياً من نظام إدارة معايير اختبار رافن CPM</div>
+  </div>
   <script>
     window.addEventListener("load", function () {
       setTimeout(function () { window.print(); }, 400);
