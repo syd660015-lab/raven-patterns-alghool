@@ -91,6 +91,7 @@ function NewSessionForm() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
+  const [birthDate, setBirthDate] = useState<string>("");
   const [form, setForm] = useState({
     subject_name: "",
     subject_age_years: 8,
@@ -100,6 +101,42 @@ function NewSessionForm() {
     subject_school: "",
     notes: "",
   });
+
+  // Auto-compute chronological age from birth date
+  function computeAge(dob: string): { years: number; months: number; days: number } | null {
+    if (!dob) return null;
+    const b = new Date(dob);
+    if (isNaN(b.getTime())) return null;
+    const now = new Date();
+    if (b > now) return null;
+    let years = now.getFullYear() - b.getFullYear();
+    let months = now.getMonth() - b.getMonth();
+    let days = now.getDate() - b.getDate();
+    if (days < 0) {
+      months -= 1;
+      const prevMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      days += prevMonth.getDate();
+    }
+    if (months < 0) {
+      years -= 1;
+      months += 12;
+    }
+    return { years, months, days };
+  }
+
+  const computedAge = computeAge(birthDate);
+
+  useEffect(() => {
+    if (!computedAge) return;
+    const y = Math.min(18, Math.max(4, computedAge.years));
+    const m = Math.min(11, Math.max(0, computedAge.months));
+    setForm((f) =>
+      f.subject_age_years === y && f.subject_age_months === m
+        ? f
+        : { ...f, subject_age_years: y, subject_age_months: m },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [birthDate]);
 
   function update<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -162,6 +199,36 @@ function NewSessionForm() {
               placeholder="الاسم الثلاثي"
               required
             />
+          </div>
+
+          <div className="sm:col-span-2">
+            <Label htmlFor="dob">تاريخ الميلاد (يحسب العمر تلقائياً)</Label>
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center mt-1">
+              <Input
+                id="dob"
+                type="date"
+                value={birthDate}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setBirthDate(e.target.value)}
+                className="sm:max-w-[220px]"
+              />
+              {computedAge ? (
+                <div className="text-sm flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-3 py-1 font-bold">
+                    العمر الزمني: {computedAge.years} سنة و {computedAge.months} شهر و {computedAge.days} يوم
+                  </span>
+                  {(computedAge.years < 4 || computedAge.years > 18) && (
+                    <span className="text-destructive text-xs">
+                      ⚠️ خارج نطاق الاختبار (4–18 سنة)
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  أو اختر السنوات/الأشهر يدوياً أدناه
+                </span>
+              )}
+            </div>
           </div>
 
           <div>
