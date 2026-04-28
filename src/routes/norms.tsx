@@ -1522,6 +1522,15 @@ function exportComparisonPdf(args: ComparisonExportArgs) {
         <div class="sig-line">${meta?.caseFileNo ? escapeHtml(meta.caseFileNo) : "—"}</div>
       </div>
     </div>
+    ${meta?.signatureEnabled && meta?.specialistName ? `
+    <div class="digital-sig">
+      <div class="lbl" style="text-align:center;margin-top:6px;">التوقيع الرقمي</div>
+      <div class="sig-script" style="font-family:${escapeHtml(meta.signatureFont || '\"Brush Script MT\", cursive')};">
+        ${escapeHtml(meta.specialistName)}
+      </div>
+      <div class="sig-meta">وقّع رقمياً في ${new Date().toLocaleString("ar")}</div>
+    </div>
+    ` : ""}
     <div class="gen-note">تم إنشاء هذا التقرير تلقائياً من نظام إدارة معايير اختبار رافن CPM</div>
   </div>
   <script>
