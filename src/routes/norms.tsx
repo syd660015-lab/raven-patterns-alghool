@@ -755,6 +755,10 @@ function CompareDialog({
     () => new Date().toISOString().slice(0, 10),
   );
   const [caseFileNo, setCaseFileNo] = useState<string>("");
+  const [signatureEnabled, setSignatureEnabled] = useState<boolean>(true);
+  const [signatureFont, setSignatureFont] = useState<string>(
+    '"Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive',
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -764,6 +768,8 @@ function CompareDialog({
         const o = JSON.parse(saved);
         if (typeof o.specialistName === "string") setSpecialistName(o.specialistName);
         if (typeof o.caseFileNo === "string") setCaseFileNo(o.caseFileNo);
+        if (typeof o.signatureEnabled === "boolean") setSignatureEnabled(o.signatureEnabled);
+        if (typeof o.signatureFont === "string" && o.signatureFont) setSignatureFont(o.signatureFont);
       } catch { /* ignore */ }
     }
   }, []);
@@ -772,14 +778,16 @@ function CompareDialog({
     if (typeof window === "undefined") return;
     window.localStorage.setItem(
       "norms.reportMeta",
-      JSON.stringify({ specialistName, caseFileNo }),
+      JSON.stringify({ specialistName, caseFileNo, signatureEnabled, signatureFont }),
     );
-  }, [specialistName, caseFileNo]);
+  }, [specialistName, caseFileNo, signatureEnabled, signatureFont]);
 
   const reportMeta: ReportMeta = {
     specialistName: specialistName.trim(),
     sessionDate: sessionDate.trim(),
     caseFileNo: caseFileNo.trim(),
+    signatureEnabled,
+    signatureFont,
   };
 
   // Initialize sensible defaults when opened
