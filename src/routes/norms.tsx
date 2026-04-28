@@ -1566,9 +1566,17 @@ function exportComparisonPdf(args: ComparisonExportArgs) {
     ${meta?.signatureEnabled && meta?.specialistName ? `
     <div class="digital-sig">
       <div class="lbl" style="text-align:center;margin-top:6px;">التوقيع الرقمي</div>
-      <div class="sig-script" style="font-family:${escapeHtml(meta.signatureFont || '\"Brush Script MT\", cursive')};">
-        ${escapeHtml(meta.specialistName)}
-      </div>
+      ${meta.signatureStyle === "stamp" ? `
+        <div class="sig-stamp-wrap">
+          <div class="sig-stamp" style="font-family:${escapeHtml(meta.signatureFont || '\"Brush Script MT\", cursive')};">
+            ${escapeHtml(meta.specialistName)}
+          </div>
+        </div>
+      ` : `
+        <div class="sig-script" style="font-family:${escapeHtml(meta.signatureFont || '\"Brush Script MT\", cursive')};">
+          ${escapeHtml(meta.specialistName)}
+        </div>
+      `}
       <div class="sig-meta">وقّع رقمياً في ${new Date().toLocaleString("ar")}</div>
     </div>
     ` : ""}
