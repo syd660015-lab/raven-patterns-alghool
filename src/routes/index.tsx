@@ -201,6 +201,36 @@ function NewSessionForm() {
             />
           </div>
 
+          <div className="sm:col-span-2">
+            <Label htmlFor="dob">تاريخ الميلاد (يحسب العمر تلقائياً)</Label>
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center mt-1">
+              <Input
+                id="dob"
+                type="date"
+                value={birthDate}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setBirthDate(e.target.value)}
+                className="sm:max-w-[220px]"
+              />
+              {computedAge ? (
+                <div className="text-sm flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-3 py-1 font-bold">
+                    العمر الزمني: {computedAge.years} سنة و {computedAge.months} شهر و {computedAge.days} يوم
+                  </span>
+                  {(computedAge.years < 4 || computedAge.years > 18) && (
+                    <span className="text-destructive text-xs">
+                      ⚠️ خارج نطاق الاختبار (4–18 سنة)
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  أو اختر السنوات/الأشهر يدوياً أدناه
+                </span>
+              )}
+            </div>
+          </div>
+
           <div>
             <Label>العمر (سنوات) *</Label>
             <Select
