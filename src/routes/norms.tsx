@@ -1168,6 +1168,7 @@ interface ReportMeta {
   caseFileNo: string;
   signatureEnabled?: boolean;
   signatureFont?: string;
+  signatureStyle?: "text" | "stamp";
 }
 
 interface ComparisonExportArgs {
