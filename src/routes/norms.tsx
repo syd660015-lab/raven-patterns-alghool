@@ -1116,6 +1116,8 @@ interface ReportMeta {
   specialistName: string;
   sessionDate: string;
   caseFileNo: string;
+  signatureEnabled?: boolean;
+  signatureFont?: string;
 }
 
 interface ComparisonExportArgs {
