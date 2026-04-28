@@ -980,8 +980,8 @@ function CompareDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 pt-3 border-t border-border/50">
-            <div className="flex items-center gap-2 sm:col-span-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-border/50">
+            <div className="flex items-center gap-2">
               <input
                 id="sig-enabled"
                 type="checkbox"
@@ -993,7 +993,19 @@ function CompareDialog({
                 إضافة توقيع رقمي للمختص في تذييل PDF
               </Label>
             </div>
-            <div className="sm:col-span-1">
+            <div>
+              <Label className="text-xs">نمط التوقيع</Label>
+              <select
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={signatureStyle}
+                onChange={(e) => setSignatureStyle(e.target.value as "text" | "stamp")}
+                disabled={!signatureEnabled}
+              >
+                <option value="text">نص بخط مختلف</option>
+                <option value="stamp">ختم دائري</option>
+              </select>
+            </div>
+            <div>
               <Label className="text-xs">خط التوقيع</Label>
               <select
                 className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
@@ -1008,14 +1020,34 @@ function CompareDialog({
                 <option value='"Courier New", monospace'>Courier (مكتبي)</option>
               </select>
             </div>
-            <div className="sm:col-span-1">
+            <div>
               <Label className="text-xs">معاينة التوقيع</Label>
-              <div
-                className="h-9 px-3 flex items-center rounded-md border border-dashed border-border/60 bg-background text-foreground text-xl"
-                style={{ fontFamily: signatureFont, opacity: signatureEnabled ? 1 : 0.4 }}
-              >
-                {specialistName || "اسم المُختص"}
-              </div>
+              {signatureStyle === "stamp" ? (
+                <div className="h-24 flex items-center justify-center">
+                  <div
+                    className="flex items-center justify-center rounded-full border-[3px] border-primary/70 bg-primary/5 text-primary text-center px-2"
+                    style={{
+                      width: 96,
+                      height: 96,
+                      fontFamily: signatureFont,
+                      opacity: signatureEnabled ? 1 : 0.4,
+                      lineHeight: 1.1,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      transform: "rotate(-6deg)",
+                    }}
+                  >
+                    {specialistName || "اسم المُختص"}
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="h-9 px-3 flex items-center rounded-md border border-dashed border-border/60 bg-background text-foreground text-xl"
+                  style={{ fontFamily: signatureFont, opacity: signatureEnabled ? 1 : 0.4 }}
+                >
+                  {specialistName || "اسم المُختص"}
+                </div>
+              )}
             </div>
           </div>
         </details>
