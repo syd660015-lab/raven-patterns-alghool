@@ -91,6 +91,7 @@ function NewSessionForm() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
+  const [birthDate, setBirthDate] = useState<string>("");
   const [form, setForm] = useState({
     subject_name: "",
     subject_age_years: 8,
@@ -100,6 +101,42 @@ function NewSessionForm() {
     subject_school: "",
     notes: "",
   });
+
+  // Auto-compute chronological age from birth date
+  function computeAge(dob: string): { years: number; months: number; days: number } | null {
+    if (!dob) return null;
+    const b = new Date(dob);
+    if (isNaN(b.getTime())) return null;
+    const now = new Date();
+    if (b > now) return null;
+    let years = now.getFullYear() - b.getFullYear();
+    let months = now.getMonth() - b.getMonth();
+    let days = now.getDate() - b.getDate();
+    if (days < 0) {
+      months -= 1;
+      const prevMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      days += prevMonth.getDate();
+    }
+    if (months < 0) {
+      years -= 1;
+      months += 12;
+    }
+    return { years, months, days };
+  }
+
+  const computedAge = computeAge(birthDate);
+
+  useEffect(() => {
+    if (!computedAge) return;
+    const y = Math.min(18, Math.max(4, computedAge.years));
+    const m = Math.min(11, Math.max(0, computedAge.months));
+    setForm((f) =>
+      f.subject_age_years === y && f.subject_age_months === m
+        ? f
+        : { ...f, subject_age_years: y, subject_age_months: m },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [birthDate]);
 
   function update<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((f) => ({ ...f, [k]: v }));
