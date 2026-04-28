@@ -759,6 +759,7 @@ function CompareDialog({
   const [signatureFont, setSignatureFont] = useState<string>(
     '"Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive',
   );
+  const [signatureStyle, setSignatureStyle] = useState<"text" | "stamp">("text");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -770,6 +771,7 @@ function CompareDialog({
         if (typeof o.caseFileNo === "string") setCaseFileNo(o.caseFileNo);
         if (typeof o.signatureEnabled === "boolean") setSignatureEnabled(o.signatureEnabled);
         if (typeof o.signatureFont === "string" && o.signatureFont) setSignatureFont(o.signatureFont);
+        if (o.signatureStyle === "text" || o.signatureStyle === "stamp") setSignatureStyle(o.signatureStyle);
       } catch { /* ignore */ }
     }
   }, []);
@@ -778,9 +780,9 @@ function CompareDialog({
     if (typeof window === "undefined") return;
     window.localStorage.setItem(
       "norms.reportMeta",
-      JSON.stringify({ specialistName, caseFileNo, signatureEnabled, signatureFont }),
+      JSON.stringify({ specialistName, caseFileNo, signatureEnabled, signatureFont, signatureStyle }),
     );
-  }, [specialistName, caseFileNo, signatureEnabled, signatureFont]);
+  }, [specialistName, caseFileNo, signatureEnabled, signatureFont, signatureStyle]);
 
   const reportMeta: ReportMeta = {
     specialistName: specialistName.trim(),
@@ -788,6 +790,7 @@ function CompareDialog({
     caseFileNo: caseFileNo.trim(),
     signatureEnabled,
     signatureFont,
+    signatureStyle,
   };
 
   // Initialize sensible defaults when opened
@@ -977,8 +980,8 @@ function CompareDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 pt-3 border-t border-border/50">
-            <div className="flex items-center gap-2 sm:col-span-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-border/50">
+            <div className="flex items-center gap-2">
               <input
                 id="sig-enabled"
                 type="checkbox"
@@ -990,7 +993,19 @@ function CompareDialog({
                 إضافة توقيع رقمي للمختص في تذييل PDF
               </Label>
             </div>
-            <div className="sm:col-span-1">
+            <div>
+              <Label className="text-xs">نمط التوقيع</Label>
+              <select
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={signatureStyle}
+                onChange={(e) => setSignatureStyle(e.target.value as "text" | "stamp")}
+                disabled={!signatureEnabled}
+              >
+                <option value="text">نص بخط مختلف</option>
+                <option value="stamp">ختم دائري</option>
+              </select>
+            </div>
+            <div>
               <Label className="text-xs">خط التوقيع</Label>
               <select
                 className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
@@ -1005,14 +1020,34 @@ function CompareDialog({
                 <option value='"Courier New", monospace'>Courier (مكتبي)</option>
               </select>
             </div>
-            <div className="sm:col-span-1">
+            <div>
               <Label className="text-xs">معاينة التوقيع</Label>
-              <div
-                className="h-9 px-3 flex items-center rounded-md border border-dashed border-border/60 bg-background text-foreground text-xl"
-                style={{ fontFamily: signatureFont, opacity: signatureEnabled ? 1 : 0.4 }}
-              >
-                {specialistName || "اسم المُختص"}
-              </div>
+              {signatureStyle === "stamp" ? (
+                <div className="h-24 flex items-center justify-center">
+                  <div
+                    className="flex items-center justify-center rounded-full border-[3px] border-primary/70 bg-primary/5 text-primary text-center px-2"
+                    style={{
+                      width: 96,
+                      height: 96,
+                      fontFamily: signatureFont,
+                      opacity: signatureEnabled ? 1 : 0.4,
+                      lineHeight: 1.1,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      transform: "rotate(-6deg)",
+                    }}
+                  >
+                    {specialistName || "اسم المُختص"}
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="h-9 px-3 flex items-center rounded-md border border-dashed border-border/60 bg-background text-foreground text-xl"
+                  style={{ fontFamily: signatureFont, opacity: signatureEnabled ? 1 : 0.4 }}
+                >
+                  {specialistName || "اسم المُختص"}
+                </div>
+              )}
             </div>
           </div>
         </details>
@@ -1165,6 +1200,7 @@ interface ReportMeta {
   caseFileNo: string;
   signatureEnabled?: boolean;
   signatureFont?: string;
+  signatureStyle?: "text" | "stamp";
 }
 
 interface ComparisonExportArgs {
@@ -1445,9 +1481,11 @@ function exportComparisonPdf(args: ComparisonExportArgs) {
   .footer .sig-row { display:flex; justify-content:space-between; align-items:flex-end; gap:24px; margin-bottom:8px; }
   .footer .sig-box { flex:1; }
   .footer .sig-line { border-top:1px solid #9ca3af; margin-top:32px; padding-top:4px; text-align:center; font-size:10px; color:#374151; }
-  .footer .digital-sig { margin: 14px auto 6px; max-width: 320px; text-align:center; padding:8px 12px; border:1px dashed #9ca3af; border-radius:8px; background:#fafaf5; }
+  .footer .digital-sig { margin: 14px auto 6px; max-width: 360px; text-align:center; padding:8px 12px; border:1px dashed #9ca3af; border-radius:8px; background:#fafaf5; }
   .footer .digital-sig .sig-script { font-size: 28px; color:#1e3a8a; line-height:1.2; padding: 4px 8px; letter-spacing: 1px; }
   .footer .digital-sig .sig-meta { font-size: 9px; color:#6b7280; margin-top:2px; font-style:italic; }
+  .footer .digital-sig .sig-stamp-wrap { display:flex; justify-content:center; align-items:center; padding: 8px 0; }
+  .footer .digital-sig .sig-stamp { width: 110px; height: 110px; border-radius: 50%; border: 3px solid #1e3a8a; background: rgba(30,58,138,0.06); color:#1e3a8a; display:flex; align-items:center; justify-content:center; text-align:center; padding: 6px; font-weight: 700; font-size: 13px; line-height: 1.15; transform: rotate(-6deg); box-shadow: inset 0 0 0 1px rgba(30,58,138,0.15); }
   .footer .gen-note { text-align:center; font-style:italic; }
   @media print { .no-print { display:none; } }
   .actions { position:fixed; top:8px; left:8px; }
@@ -1528,9 +1566,17 @@ function exportComparisonPdf(args: ComparisonExportArgs) {
     ${meta?.signatureEnabled && meta?.specialistName ? `
     <div class="digital-sig">
       <div class="lbl" style="text-align:center;margin-top:6px;">التوقيع الرقمي</div>
-      <div class="sig-script" style="font-family:${escapeHtml(meta.signatureFont || '\"Brush Script MT\", cursive')};">
-        ${escapeHtml(meta.specialistName)}
-      </div>
+      ${meta.signatureStyle === "stamp" ? `
+        <div class="sig-stamp-wrap">
+          <div class="sig-stamp" style="font-family:${escapeHtml(meta.signatureFont || '\"Brush Script MT\", cursive')};">
+            ${escapeHtml(meta.specialistName)}
+          </div>
+        </div>
+      ` : `
+        <div class="sig-script" style="font-family:${escapeHtml(meta.signatureFont || '\"Brush Script MT\", cursive')};">
+          ${escapeHtml(meta.specialistName)}
+        </div>
+      `}
       <div class="sig-meta">وقّع رقمياً في ${new Date().toLocaleString("ar")}</div>
     </div>
     ` : ""}
