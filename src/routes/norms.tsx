@@ -976,6 +976,45 @@ function CompareDialog({
               />
             </div>
           </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 pt-3 border-t border-border/50">
+            <div className="flex items-center gap-2 sm:col-span-1">
+              <input
+                id="sig-enabled"
+                type="checkbox"
+                checked={signatureEnabled}
+                onChange={(e) => setSignatureEnabled(e.target.checked)}
+                className="h-4 w-4 accent-primary"
+              />
+              <Label htmlFor="sig-enabled" className="text-xs cursor-pointer">
+                إضافة توقيع رقمي للمختص في تذييل PDF
+              </Label>
+            </div>
+            <div className="sm:col-span-1">
+              <Label className="text-xs">خط التوقيع</Label>
+              <select
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={signatureFont}
+                onChange={(e) => setSignatureFont(e.target.value)}
+                disabled={!signatureEnabled}
+              >
+                <option value='"Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive'>Brush Script (افتراضي)</option>
+                <option value='"Lucida Handwriting", "Segoe Script", cursive'>Lucida Handwriting</option>
+                <option value='"Segoe Script", "Brush Script MT", cursive'>Segoe Script</option>
+                <option value='"Comic Sans MS", "Marker Felt", cursive'>Comic Sans</option>
+                <option value='"Courier New", monospace'>Courier (مكتبي)</option>
+              </select>
+            </div>
+            <div className="sm:col-span-1">
+              <Label className="text-xs">معاينة التوقيع</Label>
+              <div
+                className="h-9 px-3 flex items-center rounded-md border border-dashed border-border/60 bg-background text-foreground text-xl"
+                style={{ fontFamily: signatureFont, opacity: signatureEnabled ? 1 : 0.4 }}
+              >
+                {specialistName || "اسم المُختص"}
+              </div>
+            </div>
+          </div>
         </details>
 
         {sameSide && (
