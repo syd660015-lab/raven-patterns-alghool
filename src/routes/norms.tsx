@@ -1481,9 +1481,11 @@ function exportComparisonPdf(args: ComparisonExportArgs) {
   .footer .sig-row { display:flex; justify-content:space-between; align-items:flex-end; gap:24px; margin-bottom:8px; }
   .footer .sig-box { flex:1; }
   .footer .sig-line { border-top:1px solid #9ca3af; margin-top:32px; padding-top:4px; text-align:center; font-size:10px; color:#374151; }
-  .footer .digital-sig { margin: 14px auto 6px; max-width: 320px; text-align:center; padding:8px 12px; border:1px dashed #9ca3af; border-radius:8px; background:#fafaf5; }
+  .footer .digital-sig { margin: 14px auto 6px; max-width: 360px; text-align:center; padding:8px 12px; border:1px dashed #9ca3af; border-radius:8px; background:#fafaf5; }
   .footer .digital-sig .sig-script { font-size: 28px; color:#1e3a8a; line-height:1.2; padding: 4px 8px; letter-spacing: 1px; }
   .footer .digital-sig .sig-meta { font-size: 9px; color:#6b7280; margin-top:2px; font-style:italic; }
+  .footer .digital-sig .sig-stamp-wrap { display:flex; justify-content:center; align-items:center; padding: 8px 0; }
+  .footer .digital-sig .sig-stamp { width: 110px; height: 110px; border-radius: 50%; border: 3px solid #1e3a8a; background: rgba(30,58,138,0.06); color:#1e3a8a; display:flex; align-items:center; justify-content:center; text-align:center; padding: 6px; font-weight: 700; font-size: 13px; line-height: 1.15; transform: rotate(-6deg); box-shadow: inset 0 0 0 1px rgba(30,58,138,0.15); }
   .footer .gen-note { text-align:center; font-style:italic; }
   @media print { .no-print { display:none; } }
   .actions { position:fixed; top:8px; left:8px; }
