@@ -222,9 +222,21 @@ function NewSessionForm() {
                     العمر الزمني: {computedAge.years} سنة و {computedAge.months} شهر و {computedAge.days} يوم
                   </span>
                   {(computedAge.years < 4 || computedAge.years > 18) && (
-                    <span className="text-destructive text-xs">
-                      ⚠️ خارج نطاق الاختبار (4–18 سنة)
-                    </span>
+                    <>
+                      <span className="inline-flex items-center gap-1 text-destructive text-xs">
+                        <AlertTriangle className="h-3.5 w-3.5" /> خارج نطاق الاختبار (4–18 سنة)
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="border-destructive/40 text-destructive hover:bg-destructive/10"
+                        onClick={() => setGuideOpen(true)}
+                      >
+                        <LifeBuoy className="ms-1 h-4 w-4" />
+                        إرشادات بديلة
+                      </Button>
+                    </>
                   )}
                 </div>
               ) : (
