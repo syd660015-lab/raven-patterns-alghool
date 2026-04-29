@@ -332,6 +332,99 @@ function NewSessionForm() {
           </div>
         </form>
       </CardContent>
+
+      <Dialog open={guideOpen} onOpenChange={setGuideOpen}>
+        <DialogContent className="max-w-lg" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LifeBuoy className="h-5 w-5 text-primary" />
+              إرشادات: العمر خارج نطاق CPM
+            </DialogTitle>
+            <DialogDescription>
+              مصفوفات رافن الملونة (CPM) معيّرة للأعمار 4–18 سنة. للحالات خارج هذا النطاق
+              يُوصى باتباع أحد الإجراءات التالية وتوثيق السبب لضمان دقة التفسير.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 text-sm">
+            <div className="rounded-lg border border-border/60 bg-secondary/40 p-3 space-y-2">
+              <p className="font-bold text-foreground">التوصيات حسب الحالة:</p>
+              <ul className="space-y-1.5 list-disc pe-5 text-muted-foreground leading-relaxed">
+                <li>
+                  <span className="font-semibold text-foreground">أقل من 4 سنوات:</span>{" "}
+                  استخدم أدوات تطورية مناسبة (مثل WPPSI-IV أو Bayley-4) بدل CPM.
+                </li>
+                <li>
+                  <span className="font-semibold text-foreground">أكبر من 18 سنة:</span>{" "}
+                  انتقل إلى نسخة <b>SPM</b> (المصفوفات القياسية) أو <b>APM</b> (المصفوفات المتقدمة).
+                </li>
+                <li>
+                  <span className="font-semibold text-foreground">حالة خاصة (إعاقة/تأخر معرفي):</span>{" "}
+                  يمكن استخدام CPM استرشادياً مع توثيق ذلك في تقرير الجلسة.
+                </li>
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <Label>الإجراء المُختار</Label>
+              <Select value={oorAction} onValueChange={setOorAction}>
+                <SelectTrigger><SelectValue placeholder="اختر إجراءً..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="إحالة لاختبار بديل (WPPSI-IV / Bayley-4)">
+                    إحالة لاختبار بديل (أقل من 4 سنوات)
+                  </SelectItem>
+                  <SelectItem value="استخدام نسخة SPM المعيارية">
+                    استخدام نسخة SPM المعيارية
+                  </SelectItem>
+                  <SelectItem value="استخدام نسخة APM المتقدمة">
+                    استخدام نسخة APM المتقدمة
+                  </SelectItem>
+                  <SelectItem value="المتابعة استرشادياً مع توثيق التحفظات">
+                    المتابعة استرشادياً مع توثيق التحفظات
+                  </SelectItem>
+                  <SelectItem value="إلغاء الجلسة وإحالة لمختص آخر">
+                    إلغاء الجلسة وإحالة لمختص آخر
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="oor-reason">سبب الاستثناء / ملاحظات (مطلوب للتوثيق)</Label>
+              <Textarea
+                id="oor-reason"
+                value={oorReason}
+                onChange={(e) => setOorReason(e.target.value)}
+                rows={3}
+                placeholder="مثال: لا تتوفر أداة بديلة في المؤسسة، الجلسة لأغراض استرشادية فقط..."
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setGuideOpen(false)}>
+              إغلاق
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (!oorAction) {
+                  toast.error("اختر إجراءً قبل التوثيق");
+                  return;
+                }
+                const stamp = new Date().toLocaleString("ar-EG");
+                const block = `\n\n[توثيق العمر خارج النطاق — ${stamp}]\nالإجراء: ${oorAction}${oorReason.trim() ? `\nالسبب/الملاحظات: ${oorReason.trim()}` : ""}`;
+                update("notes", (form.notes || "") + block);
+                toast.success("تم إضافة التوثيق إلى ملاحظات الجلسة");
+                setGuideOpen(false);
+              }}
+            >
+              <CheckCircle2 className="ms-1 h-4 w-4" />
+              توثيق في الملاحظات
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
