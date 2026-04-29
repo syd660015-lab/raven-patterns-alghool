@@ -102,6 +102,9 @@ function NewSessionForm() {
     subject_school: "",
     notes: "",
   });
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [oorAction, setOorAction] = useState<string>("");
+  const [oorReason, setOorReason] = useState<string>("");
 
   // Auto-compute chronological age from birth date
   function computeAge(dob: string): { years: number; months: number; days: number } | null {
