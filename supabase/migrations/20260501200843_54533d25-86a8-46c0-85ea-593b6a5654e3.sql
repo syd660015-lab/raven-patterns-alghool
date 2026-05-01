@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.seed_default_norm_table_for_user(UUID) FROM PUBLIC, anon, authenticated;
