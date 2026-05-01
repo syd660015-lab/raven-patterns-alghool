@@ -264,16 +264,18 @@ function TestPage() {
             السابق
           </Button>
 
-          <div className="hidden sm:flex flex-wrap gap-1 max-w-md justify-center">
+          <div className="hidden sm:flex flex-wrap gap-1 max-w-2xl justify-center">
             {RAVEN_QUESTIONS.map((qq, i) => {
               const ans = answers[qq.id] !== undefined;
               const isCurrent = i === current;
+              const arabicLabel =
+                (qq.set === "A" ? "أ" : qq.set === "Ab" ? "أب" : "ب") + qq.index;
               return (
                 <button
                   key={qq.id}
                   onClick={() => setCurrent(i)}
                   className={cn(
-                    "h-7 w-7 rounded-md text-[10px] font-bold transition-smooth",
+                    "h-8 min-w-[2.5rem] px-1.5 rounded-md text-[11px] font-bold transition-smooth",
                     isCurrent && "ring-2 ring-primary ring-offset-1",
                     ans
                       ? "bg-primary text-primary-foreground"
@@ -281,7 +283,7 @@ function TestPage() {
                   )}
                   title={qq.id}
                 >
-                  {i + 1}
+                  {arabicLabel}
                 </button>
               );
             })}
